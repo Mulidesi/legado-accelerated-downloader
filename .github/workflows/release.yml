@@ -1,0 +1,72 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'  # 当推送 v 开头的标签时触发，例如 v1.0.0, v1.0.1
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Create ZIP package
+        run: |
+          echo "Creating release package..."
+          zip -r legado-accelerated-downloader.zip . \
+            -x "*.git" \
+            -x "*.github/*" \
+            -x "*.DS_Store" \
+            -x "*.log" \
+            -x "data/downloads.json"
+          ls -lh legado-accelerated-downloader.zip
+      
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Release ${{ github.ref_name }}
+          body: |
+            ## Legado 资源加速下载 ${{ github.ref_name }}
+            
+            ### 更新内容
+            - 自动构建的发布版本
+            
+            ### 安装说明
+            1. 下载 `legado-accelerated-downloader.zip`
+            2. 解压到虚拟主机目录
+            3. 编辑 `data/resources.json` 配置资源
+            4. 访问 `index.php` 即可使用
+            
+            ### 功能特性
+            - ⚡ GitHub Release 资源加速下载
+            - 🎨 Liquid Glass 玻璃拟态 UI 风格
+            - 📊 下载统计功能
+            - 📱 响应式设计，支持移动端
+            - 🔧 无需数据库，JSON 文件配置
+            - 🚀 支持预发布版本筛选
+            
+            ### 系统要求
+            - PHP 7.4+
+            - cURL 扩展
+            
+            ### 文件说明
+            - `index.php` - 主入口文件
+            - `data/resources.json` - 资源配置
+            - `templates/` - 模板文件
+            - `assets/` - 静态资源（Bootstrap、图标等）
+          files: legado-accelerated-downloader.zip
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Release Assets
+        uses: softprops/action-gh-release@v1
+        with:
+          files: legado-accelerated-downloader.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

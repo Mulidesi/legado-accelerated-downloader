@@ -1,0 +1,97 @@
+{
+    "proxyUrls": [
+        "https://ghproxy.net/",
+        "https://ghproxy.monkeyray.net/",
+        "https://gproxy.mlds.dpdns.org/"
+    ],
+    "githubToken": "",
+    "resources": [
+        {
+            "name": "阅读 Archive",
+            "owner": "Rimchars",
+            "repo": "legado",
+            "description": "阅读 Archive 继承自 Lyc 维护的 Legado 分支，并延续 Legado 的开源阅读体验，在其基础上继续增强界面、AI、EPUB、漫画、视频和主题能力。",
+            "usePrerelease": true,
+            "recommended": true
+        },
+        {
+            "name": "阅读 R",
+            "owner": "refgd",
+            "repo": "legado",
+            "description": "阅读 R 继承自 Rimchars 维护的 Legado 分支，并延续 Legado 的开源阅读体验，在其基础上继续增强界面、AI、EPUB、漫画、视频和主题能力。",
+            "usePrerelease": true
+        },
+        {
+            "name": "阅读 Max",
+            "owner": "GEd520",
+            "repo": "legados",
+            "description": "阅读 Max 继承自阅读 Sigma，在其基础上新增更多功能。 1.appLegacy 版：包名 io.legado.app 与 lyc 原版相同，可覆盖更新 2.appMax 版：包名 io.legado.app.yuedu 共存包名，不会覆盖原版 3.appS 版：包名 io.legado.app.yuedu.a 另一个共存包名。",
+            "usePrerelease": true,
+            "recommended": true
+        },
+        {
+            "name": "阅读 T",
+            "owner": "skybbk1001",
+            "repo": "legadoT",
+            "description": "开源阅读修改版，添加基于 cron 的定时任务支持。",
+            "usePrerelease": true
+        },
+        {
+            "name": "阅读 薯条",
+            "owner": "huajideshutiao",
+            "repo": "legado",
+            "description": "采用 Material Design 3 风格重新设计的开源版本",
+            "usePrerelease": true
+        },
+        {
+            "name": "阅读 Jingshiro",
+            "owner": "Jingshiro",
+            "repo": "legado",
+            "description": "基于 Luoyacheng/legado 的二改自用版，新增详细阅读记录、笔记想法、AI 助手、主题全量导出、藏书票等功能",
+            "usePrerelease": true
+        },
+        {
+            "name": "阅读 Tauri",
+            "owner": "LegadoTeam",
+            "repo": "Legado-Tauri-Release",
+            "description": "跨平台桌面阅读应用 — 基于 Tauri v2 + Vue 3 + Rust 构建",
+            "usePrerelease": true
+        },
+        {
+            "name": "阅读 Sigma",
+            "owner": "Luoyacheng",
+            "repo": "legado",
+            "description": "基于官方版本优化的第三方版本。测试版 (beta)：包名与原版相同，可覆盖更新，版本更新频繁；正式版 (plus)：新的共存包名，安装后是一个新软件，不会覆盖原版，每到一个稳定阶段进行一次更新。",
+            "usePrerelease": true,
+            "recommended": true
+        },
+        {
+            "name": "阅读 Plus",
+            "owner": "Luoyacheng",
+            "repo": "legado",
+            "description": "Sigma 的稳定版，使用的是稳定版",
+            "usePrerelease": true
+        },
+        {
+            "name": "阅读 MD3",
+            "owner": "HapeLee",
+            "repo": "legado-with-MD3",
+            "description": "采用 Material Design 3 风格重新设计的开源版本",
+            "usePrerelease": true
+        },
+        {
+            "name": "轻阅读",
+            "owner": "autobcb",
+            "repo": "read",
+            "description": "轻阅读一个全移动端可用的阅读应用，支持多端同步阅读进度，适配各种屏幕尺寸。",
+            "usePrerelease": false
+        },
+        {
+            "name": "轻悦时光",
+            "owner": "autobcb",
+            "repo": "qysg",
+            "description": "一款多平台可用的阅读软件，通过 webview 来运行书源以达到多平台兼容的效果。",
+            "usePrerelease": false
+        }
+    ]
+}
