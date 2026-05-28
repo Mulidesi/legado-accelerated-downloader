@@ -1,72 +1,33 @@
-name: Build and Release
+name: Create Release Zip
 
+# 触发条件：当你在 GitHub 上创建一个新的 Release（发布）时触发
 on:
-  push:
-    tags:
-      - 'v*'  # 当推送 v 开头的标签时触发，例如 v1.0.0, v1.0.1
+  release:
+    types: [published]
 
 jobs:
-  build-and-release:
+  build:
     runs-on: ubuntu-latest
-    
     steps:
+      # 1. 检出仓库代码
       - name: Checkout code
         uses: actions/checkout@v4
-      
-      - name: Create ZIP package
-        run: |
-          echo "Creating release package..."
-          zip -r legado-accelerated-downloader.zip . \
-            -x "*.git" \
-            -x "*.github/*" \
-            -x "*.DS_Store" \
-            -x "*.log" \
-            -x "data/downloads.json"
-          ls -lh legado-accelerated-downloader.zip
-      
-      - name: Create Release
-        id: create_release
-        uses: softprops/action-gh-release@v1
-        with:
-          name: Release ${{ github.ref_name }}
-          body: |
-            ## Legado 资源加速下载 ${{ github.ref_name }}
-            
-            ### 更新内容
-            - 自动构建的发布版本
-            
-            ### 安装说明
-            1. 下载 `legado-accelerated-downloader.zip`
-            2. 解压到虚拟主机目录
-            3. 编辑 `data/resources.json` 配置资源
-            4. 访问 `index.php` 即可使用
-            
-            ### 功能特性
-            - ⚡ GitHub Release 资源加速下载
-            - 🎨 Liquid Glass 玻璃拟态 UI 风格
-            - 📊 下载统计功能
-            - 📱 响应式设计，支持移动端
-            - 🔧 无需数据库，JSON 文件配置
-            - 🚀 支持预发布版本筛选
-            
-            ### 系统要求
-            - PHP 7.4+
-            - cURL 扩展
-            
-            ### 文件说明
-            - `index.php` - 主入口文件
-            - `data/resources.json` - 资源配置
-            - `templates/` - 模板文件
-            - `assets/` - 静态资源（Bootstrap、图标等）
-          files: legado-accelerated-downloader.zip
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload Release Assets
-        uses: softprops/action-gh-release@v1
+      # 2. 自动打包指定文件，并使用 ${{ github.event.release.tag_name }} 获取版本号
+      - name: Archive Release Files
+        uses: thedoctor0/zip-release@0.7.6
         with:
-          files: legado-accelerated-downloader.zip
+          type: 'zip'
+          # 文件名会自动变成类似 release-v1.7.0.zip
+          filename: 'release-${{ github.event.release.tag_name }}.zip'
+          # 包含你在红框中圈出的所有文件和文件夹
+          path: 'assets data includes templates .htaccess README.md SECURITY_MIGRATION.md index.php'
+
+      # 3. 将打包好的 zip 文件自动上传到刚才创建的 GitHub Release 附件中
+      - name: Upload Release Asset
+        uses: softprops/action-gh-release@v2
+        with:
+          # 这里的 files 需要和上面定义的 filename 保持一致
+          files: 'release-${{ github.event.release.tag_name }}.zip'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
