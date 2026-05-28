@@ -1,28 +1,7 @@
-name: Build and Release
-
-on:
-  release:
-    types: [published] # 只有在点击发布 Release 时才运行
-
-permissions:
-  contents: write # 确保有上传附件的权限
-
-jobs:
-  build-and-release:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Archive Release Files
+- name: Archive Release
         uses: thedoctor0/zip-release@0.7.6
         with:
           type: 'zip'
-          # 使用 release 的 tag 名称
-          filename: 'release-${{ github.event.release.tag_name }}.zip'
+          filename: 'release.zip'
+          # 这里指定需要打包的文件和文件夹
           path: 'assets data includes templates .htaccess README.md SECURITY_MIGRATION.md index.php'
-
-      - name: Upload Release Asset
-        uses: softprops/action-gh-release@v2
-        with:
-          files: 'release-${{ github.event.release.tag_name }}.zip'
