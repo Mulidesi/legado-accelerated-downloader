@@ -1,12 +1,13 @@
-name: Create Release Zip
+name: Build and Release
+on: push
 
-# 触发条件：当你在 GitHub 上创建一个新的 Release（发布）时触发
-on:
-  release:
-    types: [published]
+# 增加这一段，专门授予写入 Release 的权限
+permissions:
+  contents: write
 
 jobs:
-  build:
+  build-and-release:
+    # ... 下面是您原本的步骤
     runs-on: ubuntu-latest
     steps:
       # 1. 检出仓库代码
