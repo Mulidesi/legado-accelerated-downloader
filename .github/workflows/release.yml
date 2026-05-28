@@ -1,34 +1,28 @@
 name: Build and Release
-on: push
 
-# 增加这一段，专门授予写入 Release 的权限
+on:
+  release:
+    types: [published] # 只有在点击发布 Release 时才运行
+
 permissions:
-  contents: write
+  contents: write # 确保有上传附件的权限
 
 jobs:
   build-and-release:
-    # ... 下面是您原本的步骤
     runs-on: ubuntu-latest
     steps:
-      # 1. 检出仓库代码
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2. 自动打包指定文件，并使用 ${{ github.event.release.tag_name }} 获取版本号
       - name: Archive Release Files
         uses: thedoctor0/zip-release@0.7.6
         with:
           type: 'zip'
-          # 文件名会自动变成类似 release-v1.7.0.zip
+          # 使用 release 的 tag 名称
           filename: 'release-${{ github.event.release.tag_name }}.zip'
-          # 包含你在红框中圈出的所有文件和文件夹
           path: 'assets data includes templates .htaccess README.md SECURITY_MIGRATION.md index.php'
 
-      # 3. 将打包好的 zip 文件自动上传到刚才创建的 GitHub Release 附件中
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v2
         with:
-          # 这里的 files 需要和上面定义的 filename 保持一致
           files: 'release-${{ github.event.release.tag_name }}.zip'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
