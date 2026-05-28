@@ -3,8 +3,7 @@
         "https://ghproxy.net/",
         "https://ghproxy.monkeyray.net/",
         "https://gproxy.mlds.dpdns.org/"
-    ],
-    "githubToken": "",
+    ],    
     "resources": [
         {
             "name": "阅读 Archive",
@@ -78,19 +77,19 @@
             "repo": "legado-with-MD3",
             "description": "采用 Material Design 3 风格重新设计的开源版本",
             "usePrerelease": true
-        },
-        {
-            "name": "轻阅读",
-            "owner": "autobcb",
-            "repo": "read",
-            "description": "轻阅读一个全移动端可用的阅读应用，支持多端同步阅读进度，适配各种屏幕尺寸。",
-            "usePrerelease": false
-        },
+        },        
         {
             "name": "轻悦时光",
             "owner": "autobcb",
             "repo": "qysg",
             "description": "一款多平台可用的阅读软件，通过 webview 来运行书源以达到多平台兼容的效果。",
+            "usePrerelease": false
+        },        
+        {
+            "name": "番茄小说下载器",
+            "owner": "zhongbai2333",
+            "repo": "Tomato-Novel-Downloader",
+            "description": "番茄小说下载器不精简版本，包括：EPUB下载支持、更好的断点续传、更好的错误管理、书本搜索、Web UI 等特性。",
             "usePrerelease": false
         }
     ]

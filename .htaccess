@@ -1,0 +1,34 @@
+# Apache 安全配置文件
+# 禁止直接访问敏感目录和文件
+
+# 禁止访问 data 目录
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^data/ - [F,L]
+</IfModule>
+
+# 或者使用 FilesMatch
+<FilesMatch "^\.">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# 禁止访问 .git 目录
+<IfModule mod_rewrite.c>
+    RewriteRule ^\.git/ - [F,L]
+</IfModule>
+
+# 禁止访问日志文件
+<FilesMatch "\.(log|json\.local)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# PHP 设置 (如果允许)
+<IfModule mod_php7.c>
+    php_flag display_errors off
+    php_value error_log data/error.log
+</IfModule>
+
+# 默认字符集
+AddDefaultCharset UTF-8

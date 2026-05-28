@@ -1,16 +1,16 @@
 <?php
 /**
- * 公共函数库 - UI保持不变的优化版
+ * 公共函数库 - 兼容性修复版
  */
 
-// 内存缓存存储
-$GLOBALS['_cache'] = [];
-$GLOBALS['_cache_ttl'] = [];
+// 内存缓存存储（备用）
+$GLOBALS['_cache'] = array();
+$GLOBALS['_cache_ttl'] = array();
 
 /**
- * 获取缓存
+ * 获取内存缓存
  */
-function _cache_get(string $key) {
+function _cache_get($key) {
     if (!isset($GLOBALS['_cache'][$key])) {
         return null;
     }
@@ -22,26 +22,50 @@ function _cache_get(string $key) {
 }
 
 /**
- * 设置缓存
+ * 设置内存缓存
  */
-function _cache_set(string $key, $value, int $ttl = 300): void {
+function _cache_set($key, $value, $ttl = 300) {
     $GLOBALS['_cache'][$key] = $value;
     $GLOBALS['_cache_ttl'][$key] = time() + $ttl;
 }
 
 /**
- * 获取 GitHub Token（单例缓存）
+ * 获取 GitHub Token - 安全增强版
+ * 优先级: 环境变量 > 本地配置 > resources.json
  */
-function getGitHubToken(): string {
+function getGitHubToken() {
     static $token = null;
     if ($token === null) {
-        $config = _cache_get('config');
-        if ($config === null) {
-            $configFile = __DIR__ . '/../data/resources.json';
-            $config = file_exists($configFile) ? json_decode(file_get_contents($configFile), true) : [];
-            _cache_set('config', $config, 60);
+        // 1. 优先从环境变量读取（最安全）
+        $envToken = getenv('GITHUB_TOKEN');
+        if (!empty($envToken)) {
+            $token = $envToken;
+            return $token;
         }
-        $token = $config['githubToken'] ?? '';
+        
+        // 2. 从本地配置文件读取（不会被提交到Git）
+        $localConfigFile = __DIR__ . '/../data/config.local.json';
+        if (file_exists($localConfigFile)) {
+            $localConfig = @json_decode(file_get_contents($localConfigFile), true);
+            if (is_array($localConfig) && isset($localConfig['githubToken']) && !empty($localConfig['githubToken'])) {
+                $token = $localConfig['githubToken'];
+                return $token;
+            }
+        }
+        
+        // 3. 兼容旧版本：从 resources.json 读取（不推荐，会提示警告）
+        $configFile = __DIR__ . '/../data/resources.json';
+        if (file_exists($configFile)) {
+            $config = @json_decode(file_get_contents($configFile), true);
+            if (is_array($config) && isset($config['githubToken'])) {
+                $token = $config['githubToken'];
+            }
+        }
+        
+        // 如果都未找到，返回空字符串
+        if ($token === null) {
+            $token = '';
+        }
     }
     return $token;
 }
@@ -49,16 +73,16 @@ function getGitHubToken(): string {
 /**
  * 构建 GitHub API 请求头
  */
-function getGitHubApiHeaders(): array {
+function getGitHubApiHeaders() {
     static $headers = null;
     if ($headers !== null) {
         return $headers;
     }
     
-    $headers = [
+    $headers = array(
         'Accept: application/vnd.github.v3+json',
         'User-Agent: GitHub-Accel-Downloader/1.7',
-    ];
+    );
     
     $token = getGitHubToken();
     if ($token !== '') {
@@ -69,24 +93,35 @@ function getGitHubApiHeaders(): array {
 }
 
 /**
- * 统一 GitHub API 请求（新增）
+ * 统一 GitHub API 请求
  */
-function _github_api_request(string $url): ?array {
+function _github_api_request($url) {
     $cacheKey = 'api:' . md5($url);
+    $cached = file_cache_get($cacheKey);
+    if ($cached !== null) {
+        return $cached;
+    }
+    
+    // 如果 file_cache 不可用，尝试内存缓存
     $cached = _cache_get($cacheKey);
     if ($cached !== null) {
         return $cached;
     }
     
     $ch = curl_init();
-    curl_setopt_array($ch, [
+    if ($ch === false) {
+        return null;
+    }
+    
+    curl_setopt_array($ch, array(
         CURLOPT_URL => $url,
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_TIMEOUT => 15,
         CURLOPT_FOLLOWLOCATION => true,
         CURLOPT_HTTPHEADER => getGitHubApiHeaders(),
         CURLOPT_SSL_VERIFYPEER => false,
-    ]);
+        CURLOPT_SSL_VERIFYHOST => 0,
+    ));
     
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -102,14 +137,20 @@ function _github_api_request(string $url): ?array {
     }
     
     _cache_set($cacheKey, $data, 60);
+    file_cache_set($cacheKey, $data, 60);
     return $data;
 }
 
 /**
- * 带缓存的 GitHub API 调用 - 优化版
+ * 带缓存的 GitHub API 调用
  */
-function getGitHubReleasesWithCache(string $owner, string $repo, bool $includePrerelease = false): array {
+function getGitHubReleasesWithCache($owner, $repo, $includePrerelease = false) {
     $cacheKey = "releases:{$owner}/{$repo}:" . ($includePrerelease ? '1' : '0');
+    
+    $cached = file_cache_get($cacheKey);
+    if ($cached !== null) {
+        return $cached;
+    }
     
     $cached = _cache_get($cacheKey);
     if ($cached !== null) {
@@ -119,40 +160,56 @@ function getGitHubReleasesWithCache(string $owner, string $repo, bool $includePr
     $data = _github_api_request("https://api.github.com/repos/{$owner}/{$repo}/releases?per_page=5");
     
     if ($data === null) {
-        $result = ['error' => 'api', 'message' => '获取 release 失败'];
+        $result = array('error' => 'api', 'message' => '获取 release 失败');
         _cache_set($cacheKey, $result, 30);
         return $result;
     }
     
     // 过滤预发布版本
     if (!$includePrerelease) {
-        $data = array_values(array_filter($data, fn($r) => empty($r['prerelease'])));
+        $filtered = array();
+        foreach ($data as $r) {
+            if (empty($r['prerelease'])) {
+                $filtered[] = $r;
+            }
+        }
+        $data = $filtered;
     }
     
-    // 精简数据，只保留必要字段
-    $result = array_slice(array_map(fn($r) => [
-        'id' => $r['id'],
-        'tag_name' => $r['tag_name'],
-        'name' => $r['name'] ?? '',
-        'prerelease' => $r['prerelease'] ?? false,
-        'published_at' => $r['published_at'],
-        'body' => $r['body'] ?? '',
-        'assets' => array_map(fn($a) => [
-            'name' => $a['name'],
-            'size' => $a['size'],
-            'browser_download_url' => $a['browser_download_url'],
-        ], $r['assets'] ?? []),
-    ], $data), 0, 3);
+    // 精简数据
+    $result = array_slice(array_map(function($r) {
+        return array(
+            'id' => $r['id'],
+            'tag_name' => $r['tag_name'],
+            'name' => isset($r['name']) ? $r['name'] : '',
+            'prerelease' => isset($r['prerelease']) ? $r['prerelease'] : false,
+            'published_at' => $r['published_at'],
+            'body' => isset($r['body']) ? $r['body'] : '',
+            'assets' => array_map(function($a) {
+                return array(
+                    'name' => $a['name'],
+                    'size' => $a['size'],
+                    'browser_download_url' => $a['browser_download_url'],
+                );
+            }, isset($r['assets']) ? $r['assets'] : array()),
+        );
+    }, $data), 0, 3);
     
     _cache_set($cacheKey, $result, 60);
+    file_cache_set($cacheKey, $result, 60);
     return $result;
 }
 
 /**
- * 获取仓库信息 - 优化版
+ * 获取仓库信息
  */
-function getGitHubRepoInfo(string $owner, string $repo): ?array {
+function getGitHubRepoInfo($owner, $repo) {
     $cacheKey = "repo:{$owner}/{$repo}";
+    
+    $cached = file_cache_get($cacheKey);
+    if ($cached !== null) {
+        return $cached;
+    }
     
     $cached = _cache_get($cacheKey);
     if ($cached !== null) {
@@ -166,30 +223,31 @@ function getGitHubRepoInfo(string $owner, string $repo): ?array {
         return null;
     }
     
-    $result = [
-        'stargazers_count' => $data['stargazers_count'] ?? 0,
-        'forks_count' => $data['forks_count'] ?? 0,
-    ];
+    $result = array(
+        'stargazers_count' => isset($data['stargazers_count']) ? $data['stargazers_count'] : 0,
+        'forks_count' => isset($data['forks_count']) ? $data['forks_count'] : 0,
+    );
     
     _cache_set($cacheKey, $result, 120);
+    file_cache_set($cacheKey, $result, 120);
     return $result;
 }
 
 /**
- * 平台检测 - 优化版（使用静态映射）
+ * 平台检测
  */
-function detectPlatforms(string $filename): array {
-    static $patterns = [
-        'Android' => ['.apk', 'arm64', 'armeabi', 'android'],
-        'iOS' => ['.ipa', 'ios'],
-        'Windows' => ['win', '.exe', '.msi'],
-        'HarmonyOS' => ['harmony', 'hms'],
-        'macOS' => ['mac', '.dmg'],
-        'Linux' => ['linux', '.deb', '.rpm'],
-    ];
+function detectPlatforms($filename) {
+    static $patterns = array(
+        'Android' => array('.apk', 'arm64', 'armeabi', 'android'),
+        'iOS' => array('.ipa', 'ios'),
+        'Windows' => array('win', '.exe', '.msi'),
+        'HarmonyOS' => array('harmony', 'hms'),
+        'macOS' => array('mac', '.dmg'),
+        'Linux' => array('linux', '.deb', '.rpm'),
+    );
     
     $lower = strtolower($filename);
-    $platforms = [];
+    $platforms = array();
     
     foreach ($patterns as $platform => $keywords) {
         foreach ($keywords as $keyword) {
@@ -208,68 +266,27 @@ function detectPlatforms(string $filename): array {
 }
 
 /**
- * 获取资源平台列表 - 优化版
- */
-function getResourcePlatforms(string $owner, string $repo): array {
-    $cacheKey = "platforms:{$owner}/{$repo}";
-    
-    $cached = _cache_get($cacheKey);
-    if ($cached !== null) {
-        return $cached;
-    }
-    
-    $data = _github_api_request("https://api.github.com/repos/{$owner}/{$repo}/releases?per_page=3");
-    $platforms = [];
-    
-    if ($data !== null) {
-        foreach ($data as $release) {
-            foreach ($release['assets'] ?? [] as $asset) {
-                $platforms = array_merge($platforms, detectPlatforms($asset['name'] ?? ''));
-            }
-        }
-    }
-    
-    // 回退检测
-    if (empty($platforms)) {
-        $lower = strtolower($repo);
-        if (strpos($lower, 'legado') !== false || strpos($lower, 'reader') !== false) {
-            $platforms[] = 'Android';
-        }
-        if (strpos($lower, 'ios') !== false) {
-            $platforms[] = 'iOS';
-        }
-        if (strpos($lower, 'win') !== false) {
-            $platforms[] = 'Windows';
-        }
-    }
-    
-    $result = array_values(array_unique($platforms));
-    _cache_set($cacheKey, $result, 300);
-    return $result;
-}
-
-/**
  * 格式化文件大小
  */
-function formatFileSizeOptimized(int $bytes): string {
+function formatFileSizeOptimized($bytes) {
     if ($bytes < 1024) {
         return $bytes . ' B';
     }
     $i = floor(log($bytes, 1024));
-    return round($bytes / (1 << (10 * $i)), $i < 2 ? 0 : 2) . ' ' . ['B', 'KB', 'MB', 'GB'][$i];
+    return round($bytes / (1 << (10 * $i)), $i < 2 ? 0 : 2) . ' ' . array('B', 'KB', 'MB', 'GB')[$i];
 }
 
 /**
  * HTML 转义
  */
-function h(string $string): string {
+function h($string) {
     return htmlspecialchars($string, ENT_QUOTES | ENT_HTML5, 'UTF-8');
 }
 
 /**
  * 格式化日期
  */
-function formatDate(string $dateString): string {
+function formatDate($dateString) {
     $ts = strtotime($dateString);
     return $ts ? date('Y-m-d H:i', $ts) : $dateString;
 }
@@ -277,7 +294,7 @@ function formatDate(string $dateString): string {
 /**
  * 轮询选择代理
  */
-function selectRandomProxy(array $urls): string {
+function selectRandomProxy($urls) {
     static $idx = -1;
     $cnt = count($urls);
     if ($cnt === 0) {
@@ -290,7 +307,7 @@ function selectRandomProxy(array $urls): string {
 /**
  * 构建加速链接
  */
-function buildAcceleratedUrlOptimized($proxyConfig, string $url): string {
-    $urls = is_array($proxyConfig) ? $proxyConfig : [$proxyConfig ?: 'https://ghproxy.net/'];
+function buildAcceleratedUrlOptimized($proxyConfig, $url) {
+    $urls = is_array($proxyConfig) ? $proxyConfig : array($proxyConfig ?: 'https://ghproxy.net/');
     return selectRandomProxy($urls) . ltrim($url, '/');
 }
