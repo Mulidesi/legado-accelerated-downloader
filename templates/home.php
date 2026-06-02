@@ -27,22 +27,26 @@
             </h1>
             <p class="text-center">本项目仅为聚合下载页面，应用版权归原作者所有</p>
             <?php if (!empty($marquee['enabled']) && !empty($marquee['items']) && is_array($marquee['items'])): ?>
+                <?php ob_start(); ?>
+                <?php foreach ($marquee['items'] as $item): ?>
+                    <?php
+                    $text = isset($item['text']) ? trim($item['text']) : '';
+                    $url = isset($item['url']) ? trim($item['url']) : '';
+                    $hasSafeUrl = $url !== '' && preg_match('/^https?:\/\//i', $url);
+                    ?>
+                    <?php if ($text !== ''): ?>
+                        <?php if ($hasSafeUrl): ?>
+                            <a href="<?= h($url) ?>" target="_blank" rel="noopener noreferrer" class="page-marquee-item"><?= h($text) ?></a>
+                        <?php else: ?>
+                            <span class="page-marquee-item"><?= h($text) ?></span>
+                        <?php endif; ?>
+                    <?php endif; ?>
+                <?php endforeach; ?>
+                <?php $marqueeContent = ob_get_clean(); ?>
                 <div class="page-marquee" aria-label="站点公告">
                     <div class="page-marquee-track">
-                        <?php foreach ($marquee['items'] as $item): ?>
-                            <?php
-                            $text = isset($item['text']) ? trim($item['text']) : '';
-                            $url = isset($item['url']) ? trim($item['url']) : '';
-                            $hasSafeUrl = $url !== '' && preg_match('/^https?:\/\//i', $url);
-                            ?>
-                            <?php if ($text !== ''): ?>
-                                <?php if ($hasSafeUrl): ?>
-                                    <a href="<?= h($url) ?>" target="_blank" rel="noopener noreferrer" class="page-marquee-item"><?= h($text) ?></a>
-                                <?php else: ?>
-                                    <span class="page-marquee-item"><?= h($text) ?></span>
-                                <?php endif; ?>
-                            <?php endif; ?>
-                        <?php endforeach; ?>
+                        <?= $marqueeContent ?>
+                        <?= $marqueeContent ?>
                     </div>
                 </div>
             <?php endif; ?>
@@ -111,7 +115,7 @@
             <div class="glass d-inline-block px-4 py-2" style="border-radius: 20px; background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px);">
                 <p class="mb-0" style="font-size: 14px; color: var(--md-sys-color-on-surface-variant);">
                     由第三方 GitHub 加速服务提供支持 | 
-                    <a href="https://github.com" target="_blank" rel="noopener noreferrer" style="color: var(--md-sys-color-primary);">GitHub</a>
+                    <a href="https://github.com/Mulidesi/legado-accelerated-downloader" target="_blank" rel="noopener noreferrer" style="color: var(--md-sys-color-primary);">GitHub</a>
                 </p>
             </div>
         </footer>

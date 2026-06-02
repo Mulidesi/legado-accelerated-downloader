@@ -147,7 +147,7 @@
             <div class="glass d-inline-block px-4 py-2" style="border-radius: 20px; background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px);">
                 <p class="mb-0" style="font-size: 14px; color: var(--md-sys-color-on-surface-variant);">
                     由第三方 GitHub 加速服务提供支持 | 
-                    <a href="https://github.com" target="_blank" rel="noopener noreferrer" style="color: var(--md-sys-color-primary);">GitHub</a>
+                    <a href="https://github.com/Mulidesi/legado-accelerated-downloader" target="_blank" rel="noopener noreferrer" style="color: var(--md-sys-color-primary);">GitHub</a>
                 </p>
             </div>
         </footer>
