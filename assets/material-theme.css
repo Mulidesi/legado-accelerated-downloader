@@ -33,13 +33,14 @@
     --md-sys-color-surface-container-highest: #E6E0E9;
     
     /* 字体 */
-    --md-sys-typescale-display-large: 400 57px/64px 'Roboto', sans-serif;
-    --md-sys-typescale-headline-large: 400 32px/40px 'Roboto', sans-serif;
-    --md-sys-typescale-title-large: 400 22px/28px 'Roboto', sans-serif;
-    --md-sys-typescale-body-large: 400 16px/24px 'Roboto', sans-serif;
-    --md-sys-typescale-body-medium: 400 14px/20px 'Roboto', sans-serif;
-    --md-sys-typescale-body-small: 400 12px/16px 'Roboto', sans-serif;
-    --md-sys-typescale-label-large: 500 14px/20px 'Roboto', sans-serif;
+    --md-sys-font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --md-sys-typescale-display-large: 400 57px/64px var(--md-sys-font-family);
+    --md-sys-typescale-headline-large: 400 32px/40px var(--md-sys-font-family);
+    --md-sys-typescale-title-large: 400 22px/28px var(--md-sys-font-family);
+    --md-sys-typescale-body-large: 400 16px/24px var(--md-sys-font-family);
+    --md-sys-typescale-body-medium: 400 14px/20px var(--md-sys-font-family);
+    --md-sys-typescale-body-small: 400 12px/16px var(--md-sys-font-family);
+    --md-sys-typescale-label-large: 500 14px/20px var(--md-sys-font-family);
     
     /* 形状 */
     --md-sys-shape-corner-small: 8px;
@@ -125,6 +126,47 @@ body {
     margin-top: 8px;
 }
 
+.page-marquee {
+    max-width: 760px;
+    margin: 16px auto 0;
+    overflow: hidden;
+    border: 1px solid rgba(103, 80, 164, 0.22);
+    border-radius: 999px;
+    background: rgba(103, 80, 164, 0.08);
+}
+
+.page-marquee-track {
+    display: inline-flex;
+    min-width: 100%;
+    gap: 36px;
+    padding: 8px 16px;
+    white-space: nowrap;
+    animation: marquee-scroll 24s linear infinite;
+}
+
+.page-marquee:hover .page-marquee-track {
+    animation-play-state: paused;
+}
+
+.page-marquee-item {
+    color: var(--md-sys-color-primary);
+    font: var(--md-sys-typescale-body-medium);
+    text-decoration: none;
+}
+
+.page-marquee-item:hover {
+    text-decoration: underline;
+}
+
+@keyframes marquee-scroll {
+    from {
+        transform: translateX(100%);
+    }
+    to {
+        transform: translateX(-100%);
+    }
+}
+
 /* 卡片 */
 .card {
     background-color: var(--md-sys-color-surface-container-high);
@@ -192,7 +234,7 @@ body {
 
 .resource-item {
     display: flex;
-    height: 305px;
+    height: 328px;
 }
 
 .resource-card {
@@ -279,6 +321,12 @@ body {
 
 .resource-card .resource-description {
     font: var(--md-sys-typescale-body-medium);
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+.resource-updated {
+    display: block;
+    margin-top: 6px;
     color: var(--md-sys-color-on-surface-variant);
 }
 

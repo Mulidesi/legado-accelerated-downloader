@@ -3,13 +3,27 @@
         "https://ghproxy.net/",
         "https://ghproxy.monkeyray.net/",
         "https://gproxy.mlds.dpdns.org/"
-    ],    
+    ],
+    "marquee": {
+        "enabled": true,
+        "items": [
+            {
+                "text": "欢迎访问 Legado 资源加速下载站，点击查看开源阅读项目 Legado。",
+                "url": "https://github.com/gedoor/legado"
+            },
+            {
+                "text": "本站仅聚合公开 GitHub Release 下载入口，请以原作者项目说明为准。",
+                "url": "https://github.com"
+            }
+        ]
+    },
     "resources": [
         {
             "name": "阅读 Archive",
             "owner": "Rimchars",
             "repo": "legado",
             "description": "阅读 Archive 继承自 Lyc 维护的 Legado 分支，并延续 Legado 的开源阅读体验，在其基础上继续增强界面、AI、EPUB、漫画、视频和主题能力。",
+            "platforms": ["Android"],
             "usePrerelease": true,
             "recommended": true
         },
@@ -18,6 +32,7 @@
             "owner": "refgd",
             "repo": "legado",
             "description": "阅读 R 继承自 Rimchars 维护的 Legado 分支，并延续 Legado 的开源阅读体验，在其基础上继续增强界面、AI、EPUB、漫画、视频和主题能力。",
+            "platforms": ["Android"],
             "usePrerelease": true
         },
         {
@@ -25,6 +40,7 @@
             "owner": "GEd520",
             "repo": "legados",
             "description": "阅读 Max 继承自阅读 Sigma，在其基础上新增更多功能。 1.appLegacy 版：包名 io.legado.app 与 lyc 原版相同，可覆盖更新 2.appMax 版：包名 io.legado.app.yuedu 共存包名，不会覆盖原版 3.appS 版：包名 io.legado.app.yuedu.a 另一个共存包名。",
+            "platforms": ["Android"],
             "usePrerelease": true,
             "recommended": true
         },
@@ -33,6 +49,7 @@
             "owner": "skybbk1001",
             "repo": "legadoT",
             "description": "开源阅读修改版，添加基于 cron 的定时任务支持。",
+            "platforms": ["Android"],
             "usePrerelease": true
         },
         {
@@ -40,6 +57,7 @@
             "owner": "huajideshutiao",
             "repo": "legado",
             "description": "采用 Material Design 3 风格重新设计的开源版本",
+            "platforms": ["Android"],
             "usePrerelease": true
         },
         {
@@ -47,6 +65,7 @@
             "owner": "Jingshiro",
             "repo": "legado",
             "description": "基于 Luoyacheng/legado 的二改自用版，新增详细阅读记录、笔记想法、AI 助手、主题全量导出、藏书票等功能",
+            "platforms": ["Android"],
             "usePrerelease": true
         },
         {
@@ -54,6 +73,7 @@
             "owner": "LegadoTeam",
             "repo": "Legado-Tauri-Release",
             "description": "跨平台桌面阅读应用 — 基于 Tauri v2 + Vue 3 + Rust 构建",
+            "platforms": ["Windows", "macOS", "Linux"],
             "usePrerelease": true
         },
         {
@@ -61,6 +81,7 @@
             "owner": "Luoyacheng",
             "repo": "legado",
             "description": "基于官方版本优化的第三方版本。测试版 (beta)：包名与原版相同，可覆盖更新，版本更新频繁；正式版 (plus)：新的共存包名，安装后是一个新软件，不会覆盖原版，每到一个稳定阶段进行一次更新。",
+            "platforms": ["Android"],
             "usePrerelease": true,
             "recommended": true
         },
@@ -69,6 +90,7 @@
             "owner": "Luoyacheng",
             "repo": "legado",
             "description": "Sigma 的稳定版，使用的是稳定版",
+            "platforms": ["Android"],
             "usePrerelease": true
         },
         {
@@ -76,6 +98,7 @@
             "owner": "HapeLee",
             "repo": "legado-with-MD3",
             "description": "采用 Material Design 3 风格重新设计的开源版本",
+            "platforms": ["Android"],
             "usePrerelease": true
         },        
         {
@@ -83,6 +106,7 @@
             "owner": "autobcb",
             "repo": "qysg",
             "description": "一款多平台可用的阅读软件，通过 webview 来运行书源以达到多平台兼容的效果。",
+            "platforms": ["Android", "iOS", "Windows"],
             "usePrerelease": false
         },        
         {
@@ -90,6 +114,7 @@
             "owner": "zhongbai2333",
             "repo": "Tomato-Novel-Downloader",
             "description": "番茄小说下载器不精简版本，包括：EPUB下载支持、更好的断点续传、更好的错误管理、书本搜索、Web UI 等特性。",
+            "platforms": ["Windows", "macOS", "Linux"],
             "usePrerelease": false
         }
     ]

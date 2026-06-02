@@ -7,6 +7,22 @@
 $GLOBALS['_cache'] = array();
 $GLOBALS['_cache_ttl'] = array();
 
+if (!defined('API_CACHE_TTL')) {
+    define('API_CACHE_TTL', 900);
+}
+if (!defined('RELEASES_CACHE_TTL')) {
+    define('RELEASES_CACHE_TTL', 900);
+}
+if (!defined('REPO_INFO_CACHE_TTL')) {
+    define('REPO_INFO_CACHE_TTL', 3600);
+}
+if (!defined('PLATFORMS_CACHE_TTL')) {
+    define('PLATFORMS_CACHE_TTL', 21600);
+}
+if (!defined('RESOURCE_UPDATE_CACHE_TTL')) {
+    define('RESOURCE_UPDATE_CACHE_TTL', 3600);
+}
+
 /**
  * 获取内存缓存
  */
@@ -73,22 +89,33 @@ function getGitHubToken() {
 /**
  * 构建 GitHub API 请求头
  */
-function getGitHubApiHeaders() {
-    static $headers = null;
-    if ($headers !== null) {
-        return $headers;
+function getGitHubApiHeaders($includeToken = true) {
+    static $headersWithToken = null;
+    static $headersWithoutToken = null;
+
+    if (!$includeToken && $headersWithoutToken !== null) {
+        return $headersWithoutToken;
     }
-    
+    if ($includeToken && $headersWithToken !== null) {
+        return $headersWithToken;
+    }
+
     $headers = array(
         'Accept: application/vnd.github.v3+json',
         'User-Agent: GitHub-Accel-Downloader/1.7',
     );
-    
-    $token = getGitHubToken();
-    if ($token !== '') {
+
+    $token = $includeToken ? getGitHubToken() : '';
+    if ($includeToken && $token !== '') {
         $headers[] = 'Authorization: token ' . $token;
     }
-    
+
+    if ($includeToken) {
+        $headersWithToken = $headers;
+    } else {
+        $headersWithoutToken = $headers;
+    }
+
     return $headers;
 }
 
@@ -119,13 +146,34 @@ function _github_api_request($url) {
         CURLOPT_TIMEOUT => 15,
         CURLOPT_FOLLOWLOCATION => true,
         CURLOPT_HTTPHEADER => getGitHubApiHeaders(),
-        CURLOPT_SSL_VERIFYPEER => false,
-        CURLOPT_SSL_VERIFYHOST => 0,
+        CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_SSL_VERIFYHOST => 2,
     ));
     
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
+
+    if ($httpCode === 401 && getGitHubToken() !== '') {
+        $ch = curl_init();
+        if ($ch === false) {
+            return null;
+        }
+
+        curl_setopt_array($ch, array(
+            CURLOPT_URL => $url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 15,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTPHEADER => getGitHubApiHeaders(false),
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
+        ));
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+    }
     
     if ($httpCode !== 200 || !$response) {
         return null;
@@ -136,36 +184,19 @@ function _github_api_request($url) {
         return null;
     }
     
-    _cache_set($cacheKey, $data, 60);
-    file_cache_set($cacheKey, $data, 60);
+    _cache_set($cacheKey, $data, API_CACHE_TTL);
+    file_cache_set($cacheKey, $data, API_CACHE_TTL);
     return $data;
 }
 
 /**
- * 带缓存的 GitHub API 调用
+ * 精简 release 数据
  */
-function getGitHubReleasesWithCache($owner, $repo, $includePrerelease = false) {
-    $cacheKey = "releases:{$owner}/{$repo}:" . ($includePrerelease ? '1' : '0');
-    
-    $cached = file_cache_get($cacheKey);
-    if ($cached !== null) {
-        return $cached;
+function normalizeGitHubReleases($data, $includePrerelease = false) {
+    if (!is_array($data)) {
+        return array();
     }
-    
-    $cached = _cache_get($cacheKey);
-    if ($cached !== null) {
-        return $cached;
-    }
-    
-    $data = _github_api_request("https://api.github.com/repos/{$owner}/{$repo}/releases?per_page=5");
-    
-    if ($data === null) {
-        $result = array('error' => 'api', 'message' => '获取 release 失败');
-        _cache_set($cacheKey, $result, 30);
-        return $result;
-    }
-    
-    // 过滤预发布版本
+
     if (!$includePrerelease) {
         $filtered = array();
         foreach ($data as $r) {
@@ -175,9 +206,8 @@ function getGitHubReleasesWithCache($owner, $repo, $includePrerelease = false) {
         }
         $data = $filtered;
     }
-    
-    // 精简数据
-    $result = array_slice(array_map(function($r) {
+
+    return array_slice(array_map(function($r) {
         return array(
             'id' => $r['id'],
             'tag_name' => $r['tag_name'],
@@ -194,9 +224,36 @@ function getGitHubReleasesWithCache($owner, $repo, $includePrerelease = false) {
             }, isset($r['assets']) ? $r['assets'] : array()),
         );
     }, $data), 0, 3);
-    
-    _cache_set($cacheKey, $result, 60);
-    file_cache_set($cacheKey, $result, 60);
+}
+
+/**
+ * 带缓存的 GitHub API 调用
+ */
+function getGitHubReleasesWithCache($owner, $repo, $includePrerelease = false) {
+    $cacheKey = "releases:{$owner}/{$repo}:" . ($includePrerelease ? '1' : '0');
+
+    $cached = file_cache_get($cacheKey);
+    if ($cached !== null) {
+        return $cached;
+    }
+
+    $cached = _cache_get($cacheKey);
+    if ($cached !== null) {
+        return $cached;
+    }
+
+    $data = _github_api_request("https://api.github.com/repos/{$owner}/{$repo}/releases?per_page=5");
+
+    if ($data === null) {
+        $result = array('error' => 'api', 'message' => '获取 release 失败');
+        _cache_set($cacheKey, $result, 30);
+        return $result;
+    }
+
+    $result = normalizeGitHubReleases($data, $includePrerelease);
+
+    _cache_set($cacheKey, $result, RELEASES_CACHE_TTL);
+    file_cache_set($cacheKey, $result, RELEASES_CACHE_TTL);
     return $result;
 }
 
@@ -228,9 +285,68 @@ function getGitHubRepoInfo($owner, $repo) {
         'forks_count' => isset($data['forks_count']) ? $data['forks_count'] : 0,
     );
     
-    _cache_set($cacheKey, $result, 120);
-    file_cache_set($cacheKey, $result, 120);
+    _cache_set($cacheKey, $result, REPO_INFO_CACHE_TTL);
+    file_cache_set($cacheKey, $result, REPO_INFO_CACHE_TTL);
     return $result;
+}
+
+/**
+ * 并发获取仓库详情页数据
+ */
+function getGitHubRepoDetailWithCache($owner, $repo, $includePrerelease = false) {
+    $repoCacheKey = "repo:{$owner}/{$repo}";
+    $releasesCacheKey = "releases:{$owner}/{$repo}:" . ($includePrerelease ? '1' : '0');
+
+    $repoInfo = file_cache_get($repoCacheKey);
+    if ($repoInfo === null) {
+        $repoInfo = _cache_get($repoCacheKey);
+    }
+
+    $releases = file_cache_get($releasesCacheKey);
+    if ($releases === null) {
+        $releases = _cache_get($releasesCacheKey);
+    }
+
+    $urls = array();
+    if ($repoInfo === null) {
+        $urls['repo'] = "https://api.github.com/repos/{$owner}/{$repo}";
+    }
+    if ($releases === null) {
+        $urls['releases'] = "https://api.github.com/repos/{$owner}/{$repo}/releases?per_page=5";
+    }
+
+    if (!empty($urls)) {
+        $responses = github_api_multi_request($urls, 15, RELEASES_CACHE_TTL);
+
+        if ($repoInfo === null) {
+            $data = isset($responses['repo']) ? $responses['repo'] : null;
+            if (is_array($data)) {
+                $repoInfo = array(
+                    'stargazers_count' => isset($data['stargazers_count']) ? $data['stargazers_count'] : 0,
+                    'forks_count' => isset($data['forks_count']) ? $data['forks_count'] : 0,
+                );
+                _cache_set($repoCacheKey, $repoInfo, REPO_INFO_CACHE_TTL);
+                file_cache_set($repoCacheKey, $repoInfo, REPO_INFO_CACHE_TTL);
+            }
+        }
+
+        if ($releases === null) {
+            $data = isset($responses['releases']) ? $responses['releases'] : null;
+            if (is_array($data)) {
+                $releases = normalizeGitHubReleases($data, $includePrerelease);
+                _cache_set($releasesCacheKey, $releases, RELEASES_CACHE_TTL);
+                file_cache_set($releasesCacheKey, $releases, RELEASES_CACHE_TTL);
+            } else {
+                $releases = array('error' => 'api', 'message' => '获取 release 失败');
+                _cache_set($releasesCacheKey, $releases, 30);
+            }
+        }
+    }
+
+    return array(
+        'repoInfo' => $repoInfo,
+        'releases' => $releases === null ? array('error' => 'api', 'message' => '获取 release 失败') : $releases,
+    );
 }
 
 /**

@@ -13,13 +13,15 @@
     }
     
     // 应用主题
-    function applyTheme(theme) {
+    function applyTheme(theme, persist = true) {
         if (theme === 'dark') {
             document.documentElement.setAttribute('data-theme', 'dark');
         } else {
             document.documentElement.removeAttribute('data-theme');
         }
-        localStorage.setItem(THEME_KEY, theme);
+        if (persist) {
+            localStorage.setItem(THEME_KEY, theme);
+        }
         updateToggleIcon(theme);
     }
     
@@ -38,7 +40,7 @@
     // 初始化
     document.addEventListener('DOMContentLoaded', function() {
         const theme = getPreferredTheme();
-        applyTheme(theme);
+        applyTheme(theme, Boolean(localStorage.getItem(THEME_KEY)));
         
         // 绑定切换事件
         document.getElementById('themeToggle')?.addEventListener('click', function() {

@@ -7,6 +7,19 @@
     RewriteRule ^data/ - [F,L]
 </IfModule>
 
+<IfModule mod_authz_core.c>
+    <FilesMatch "(^\.ht|config\.local\.json$|resources\.json$|.*\.log$)">
+        Require all denied
+    </FilesMatch>
+</IfModule>
+
+<IfModule !mod_authz_core.c>
+    <FilesMatch "(^\.ht|config\.local\.json$|resources\.json$|.*\.log$)">
+        Order allow,deny
+        Deny from all
+    </FilesMatch>
+</IfModule>
+
 # 或者使用 FilesMatch
 <FilesMatch "^\.">
     Order allow,deny
@@ -32,3 +45,11 @@
 
 # 默认字符集
 AddDefaultCharset UTF-8
+
+# 安全响应头兜底
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "DENY"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    Header always set Permissions-Policy "geolocation=(), microphone=(), camera=()"
+</IfModule>

@@ -5,9 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Legado 资源加速下载</title>
     <link rel="icon" href="assets/favicon.ico" type="image/x-icon">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@500&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <script>
+        (function() {
+            const saved = localStorage.getItem('gh-accel-theme');
+            const theme = saved || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            if (theme === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            }
+        })();
+    </script>
     <link href="assets/material-theme.css" rel="stylesheet">
 </head>
 <body>
@@ -20,6 +26,26 @@
                 Legado 资源加速下载
             </h1>
             <p class="text-center">本项目仅为聚合下载页面，应用版权归原作者所有</p>
+            <?php if (!empty($marquee['enabled']) && !empty($marquee['items']) && is_array($marquee['items'])): ?>
+                <div class="page-marquee" aria-label="站点公告">
+                    <div class="page-marquee-track">
+                        <?php foreach ($marquee['items'] as $item): ?>
+                            <?php
+                            $text = isset($item['text']) ? trim($item['text']) : '';
+                            $url = isset($item['url']) ? trim($item['url']) : '';
+                            $hasSafeUrl = $url !== '' && preg_match('/^https?:\/\//i', $url);
+                            ?>
+                            <?php if ($text !== ''): ?>
+                                <?php if ($hasSafeUrl): ?>
+                                    <a href="<?= h($url) ?>" target="_blank" rel="noopener noreferrer" class="page-marquee-item"><?= h($text) ?></a>
+                                <?php else: ?>
+                                    <span class="page-marquee-item"><?= h($text) ?></span>
+                                <?php endif; ?>
+                            <?php endif; ?>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            <?php endif; ?>
         </header>
         
         <div class="filter-container">
@@ -70,6 +96,9 @@
                                         <img src="assets/github-icon.png" alt="GitHub" width="14" height="14" class="me-1" style="vertical-align: text-bottom;">
                                         <?= h($resource['owner'] . '/' . $resource['repo']) ?>
                                     </small>
+                                    <?php if (!empty($resource['updatedAt'])): ?>
+                                        <small class="resource-updated">最近更新：<?= h(formatDate($resource['updatedAt'])) ?></small>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                         </a>
@@ -82,7 +111,7 @@
             <div class="glass d-inline-block px-4 py-2" style="border-radius: 20px; background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px);">
                 <p class="mb-0" style="font-size: 14px; color: var(--md-sys-color-on-surface-variant);">
                     由第三方 GitHub 加速服务提供支持 | 
-                    <a href="https://github.com" target="_blank" style="color: var(--md-sys-color-primary);">GitHub</a>
+                    <a href="https://github.com" target="_blank" rel="noopener noreferrer" style="color: var(--md-sys-color-primary);">GitHub</a>
                 </p>
             </div>
         </footer>
@@ -91,7 +120,10 @@
     <script>
         (function() {
             const filterBtns = document.querySelectorAll('.filter-btn');
-            const resourceItems = document.querySelectorAll('.resource-item');
+            const resourceItems = Array.from(document.querySelectorAll('.resource-item')).map(item => ({
+                el: item,
+                platforms: JSON.parse(item.dataset.platforms || '[]')
+            }));
             
             filterBtns.forEach(btn => {
                 btn.addEventListener('click', function() {
@@ -101,11 +133,10 @@
                     this.classList.add('active');
                     
                     resourceItems.forEach(item => {
-                        const platforms = JSON.parse(item.dataset.platforms || '[]');
-                        if (platform === 'all' || platforms.includes(platform)) {
-                            item.style.display = '';
+                        if (platform === 'all' || item.platforms.includes(platform)) {
+                            item.el.style.display = '';
                         } else {
-                            item.style.display = 'none';
+                            item.el.style.display = 'none';
                         }
                     });
                 });

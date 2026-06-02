@@ -1,45 +1,58 @@
 # Legado 资源加速下载站点
 
-基于 PHP 的 GitHub 资源加速下载站点，支持多平台检测和第三方加速代理，运行在免费虚拟主机环境。
+基于 PHP 的 GitHub Release 聚合下载站点，用于集中展示 Legado 相关资源，并通过配置的 HTTPS 加速代理生成下载入口。项目采用单入口 PHP 架构，适合部署在支持 PHP 和 cURL 的虚拟主机、Apache、Nginx 或轻量 PHP 运行环境中。
 
-[![Version](https://img.shields.io/badge/version-1.7.3-blue.svg)](https://github.com)
+[![Version](https://img.shields.io/badge/version-1.8.0-blue.svg)](https://github.com)
 [![PHP](https://img.shields.io/badge/PHP-7.4+-blue.svg)](https://php.net)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 ## 功能特性
 
-- 资源配置管理（JSON 文件格式）
-- 调用 GitHub API 获取最新 release 版本
-- 支持预发布版本筛选
-- 多平台自动检测（Android、iOS、Windows、HarmonyOS、macOS、Linux）
-- 平台筛选功能
-- 第三方加速代理下载
-- 响应式设计，支持移动端访问
-- Material Design 3 风格 UI
-- 明暗主题切换
-- 文件缓存系统，减少 API 请求
-- 并发 API 请求，提升加载速度
-- 安全增强：支持环境变量和本地配置文件存储 GitHub Token
+- 使用 `data/resources.json` 管理资源列表、代理地址和首页跑马灯。
+- 调用 GitHub API 获取 release、仓库 Stars、Forks 和更新时间。
+- 支持预发布版本筛选，可按资源单独配置 `usePrerelease`。
+- 支持 Android、iOS、Windows、HarmonyOS、macOS、Linux 平台展示和筛选。
+- 资源可配置 `platforms` 字段，首页优先使用配置值，减少 GitHub API 请求。
+- 支持推荐资源置顶展示。
+- 支持多组 HTTPS 下载代理，并限制代理域名 allowlist。
+- 首页展示每个资源的最近更新时间。
+- 详情页展示最近 release、资源文件、平台标签和加速下载按钮。
+- 文件缓存和请求级内存缓存共同降低 GitHub API 调用量。
+- GitHub 仓库详情和 release 信息并发请求，提升详情页加载速度。
+- GitHub Token 支持环境变量和本地配置文件，Token 失效时自动匿名降级。
+- Material Design 3 风格 UI，支持明暗主题切换和移动端访问。
+- 内置安全响应头、CSP、TLS 校验、外链隔离和敏感目录访问保护。
 
 ## 环境要求
 
 - PHP 7.4+
-- cURL 扩展
-- JSON 扩展
-- 允许访问外部 URL（GitHub API 和加速代理服务）
+- PHP cURL 扩展
+- PHP JSON 扩展
+- 服务器允许访问 GitHub API
+- 服务器 CA 证书链可用，用于 HTTPS TLS 校验
 
-## 部署步骤
+## 快速开始
 
-1. 上传所有文件到虚拟主机
-2. 编辑 `data/resources.json` 添加资源配置
-3. 配置 GitHub Token（可选，但推荐）
-4. 访问 `index.php` 即可使用
+### 本地预览
+
+```bash
+# 启动 PHP 内置服务器
+php -S localhost:8000
+```
+
+访问：`http://localhost:8000/`
+
+### 部署到服务器
+
+1. 上传项目文件到 Web 根目录或站点目录。
+2. 根据需要编辑 `data/resources.json`。
+3. 配置 GitHub Token。
+4. 确认 Web 服务器可写入 `data/cache/`。
+5. 访问 `index.php` 或站点首页。
 
 ## 配置说明
 
-### 1. 资源配置
-
-编辑 `data/resources.json` 文件：
+主要配置文件位于 `data/resources.json`：
 
 ```json
 {
@@ -48,236 +61,279 @@
         "https://ghproxy.monkeyray.net/",
         "https://gproxy.mlds.dpdns.org/"
     ],
-    "resources": [
-        {
-            "name": "资源名称",
-            "owner": "GitHub 用户名",
-            "repo": "仓库名称",
-            "description": "资源简介",
-            "usePrerelease": false,
-            "recommended": false
-        }
-    ]
-}
-```
-
-### 配置字段说明
-
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| proxyUrls | array | 是 | 加速代理地址列表，支持轮询选择 |
-| name | string | 是 | 资源显示名称 |
-| owner | string | 是 | GitHub 仓库拥有者用户名 |
-| repo | string | 是 | GitHub 仓库名称 |
-| description | string | 是 | 资源简介描述 |
-| usePrerelease | boolean | 是 | 是否包含预发布版本 |
-| recommended | boolean | 否 | 是否推荐（标记后在首页置顶显示） |
-
-### 2. GitHub Token 配置（可选）
-
-配置 Token 后可提高 GitHub API 请求限制（60 次/小时 → 5000 次/小时）。
-
-**方法一：环境变量（推荐）**
-
-在虚拟主机控制面板设置环境变量 `GITHUB_TOKEN`，或在 `.htaccess` 中添加：
-
-```apache
-SetEnv GITHUB_TOKEN ghp_xxxxxxxxxxxxxxxxxxxx
-```
-
-**方法二：本地配置文件**
-
-创建 `data/config.local.json` 文件（已包含在 `.gitignore` 中）：
-
-```json
-{
-    "githubToken": "ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-}
-```
-
-> 详细迁移指南请参阅 [SECURITY_MIGRATION.md](SECURITY_MIGRATION.md)
-
-## 可用的加速代理服务
-
-- https://ghproxy.net/
-- https://ghproxy.monkeyray.net/
-- https://gproxy.mlds.dpdns.org/
-- https://ghproxy.com/
-- https://github.moeyy.xyz/
-
-> 注意：加速代理服务的可用性可能随时间变化，请选择稳定的服务
-
-## 项目结构
-
-```
-github-accel-downloader/
-├── index.php              # 主入口文件
-├── includes/
-│   ├── config.php         # 配置加载（支持环境变量和本地配置）
-│   ├── functions.php      # 公共函数库（API 调用、平台检测等）
-│   └── cache.php          # 缓存系统（文件缓存 + 内存缓存）
-├── data/
-│   ├── resources.json     # 资源配置
-│   ├── config.local.json  # 本地配置（敏感信息，不提交到 Git）
-│   └── cache/             # 缓存目录
-├── templates/
-│   ├── home.php           # 首页模板（资源列表、平台筛选）
-│   └── resource.php       # 资源详情页模板（版本列表、加速下载）
-├── assets/
-│   ├── bootstrap.min.css  # Bootstrap 5.3 样式
-│   ├── bootstrap.bundle.min.js  # Bootstrap JS
-│   ├── material-theme.css # Material Design 3 主题样式
-│   ├── shared.css         # 共享样式
-│   ├── theme-switcher.js  # 明暗主题切换
-│   ├── favicon.ico        # 网站图标
-│   └── github-icon.png    # GitHub 图标
-├── SECURITY_MIGRATION.md  # 安全迁移指南
-└── README.md              # 项目说明
-```
-
-## 使用说明
-
-### 配置资源
-
-在 `data/resources.json` 中添加要加速的 GitHub 资源。完整示例：
-
-```json
-{
-    "proxyUrls": [
-        "https://ghproxy.net/",
-        "https://ghproxy.monkeyray.net/"
-    ],
+    "marquee": {
+        "enabled": true,
+        "items": [
+            {
+                "text": "欢迎访问 Legado 资源加速下载站，点击查看开源阅读项目 Legado。",
+                "url": "https://github.com/gedoor/legado"
+            }
+        ]
+    },
     "resources": [
         {
             "name": "阅读 Archive",
             "owner": "Rimchars",
             "repo": "legado",
-            "description": "阅读 Archive 继承自 Lyc 维护的 Legado 分支，继续增强阅读体验。",
+            "description": "阅读 Archive 继承自 Lyc 维护的 Legado 分支。",
+            "platforms": ["Android"],
             "usePrerelease": true,
             "recommended": true
-        },
-        {
-            "name": "阅读 Tauri",
-            "owner": "LegadoTeam",
-            "repo": "Legado-Tauri-Release",
-            "description": "跨平台桌面阅读应用 — 基于 Tauri v2 + Vue 3 + Rust 构建",
-            "usePrerelease": true
         }
     ]
 }
 ```
 
-### 访问站点
+### 顶层字段
 
-1. **访问首页**：查看资源配置列表，支持按平台筛选（全部、Android、iOS、HarmonyOS、Windows）
-2. **点击资源卡片**：查看该资源的最近 3 个 release 版本、Stars、Forks 信息
-3. **点击下载按钮**：使用配置的代理地址加速下载资源
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `proxyUrls` | array | 是 | 下载加速代理地址列表。当前代码仅接受 allowlist 内的 HTTPS 域名。 |
+| `marquee` | object | 否 | 首页公告跑马灯配置。 |
+| `resources` | array | 是 | GitHub 资源列表。 |
 
-### 平台检测
+### marquee 字段
 
-系统会自动根据文件名检测支持的发布平台：
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `enabled` | boolean | 否 | 是否启用首页跑马灯。 |
+| `items` | array | 否 | 跑马灯条目，最多展示 10 条。 |
+| `items[].text` | string | 是 | 公告文本，最多保留 160 个 UTF-8 字符。 |
+| `items[].url` | string | 否 | 公告链接，仅接受 HTTPS URL。 |
 
-| 平台 | 检测关键词 |
-|------|-----------|
-| Android | `.apk`, `arm64`, `armeabi`, `android` |
-| iOS | `.ipa`, `ios` |
-| Windows | `win`, `.exe`, `.msi` |
-| HarmonyOS | `harmony`, `hms` |
-| macOS | `mac`, `.dmg` |
-| Linux | `linux`, `.deb`, `.rpm` |
+### resources 字段
 
-## API 限制
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `name` | string | 是 | 资源显示名称。 |
+| `owner` | string | 是 | GitHub 仓库拥有者。 |
+| `repo` | string | 是 | GitHub 仓库名称。 |
+| `description` | string | 是 | 资源简介。 |
+| `platforms` | array | 否 | 平台标签，例如 `Android`、`Windows`、`macOS`、`Linux`。首页筛选优先使用该字段。 |
+| `usePrerelease` | boolean | 是 | 是否包含 prerelease 版本。 |
+| `recommended` | boolean | 否 | 是否推荐，推荐资源会置顶展示。 |
 
-**未配置 Token：**
-- 60 次/小时（公共 API）
-- 超出限制后会显示友好提示，等待一小时后自动恢复
+### 代理地址限制
 
-**配置 Token 后：**
-- 5000 次/小时（认证 API）
-- 建议使用细粒度 Token，仅授予 Public repositories 读取权限
+当前允许的代理域名：
 
-## 缓存机制
+- `ghproxy.net`
+- `ghproxy.monkeyray.net`
+- `gproxy.mlds.dpdns.org`
 
-系统采用两级缓存机制：
+配置项必须使用 HTTPS。非法代理地址会被过滤；全部过滤后会回退到默认代理列表。
 
-1. **文件缓存**：缓存 GitHub API 响应，默认 TTL 为 1 小时
-2. **内存缓存**：当前请求周期内的缓存，减少文件 I/O
+## GitHub Token 配置
 
-缓存文件存储在 `data/cache/` 目录，可手动清空。
+配置 Token 可以提升 GitHub API 请求额度，从公共 API 的 60 次/小时提升到认证 API 的 5000 次/小时。
 
-## 安全特性
+### 环境变量
 
-### v1.7.3 安全增强
-
-- GitHub Token 从环境变量或本地配置读取
-- `resources.json` 不再包含敏感信息
-- 添加 `.gitignore` 防止敏感文件提交
-- 支持多种 Token 存储方式（环境变量 > 本地配置 > 兼容性读取）
-
-### 文件权限建议
+推荐在虚拟主机控制面板或运行环境中配置：
 
 ```bash
-chmod 600 data/config.local.json
-chmod 600 data/resources.json
-chmod 755 data/
+# 设置 GitHub API Token
+export GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx
 ```
 
-### Web 服务器防护
+Apache 环境也可以在 `.htaccess` 中配置：
 
-**Nginx：**
-```nginx
-location ~ /data/ {
-    deny all;
-    return 403;
+```apache
+SetEnv GITHUB_TOKEN ghp_xxxxxxxxxxxxxxxxxxxx
+```
+
+### 本地配置文件
+
+复制示例配置：
+
+```bash
+# 复制本地配置模板
+cp data/config.local.json.example data/config.local.json
+```
+
+编辑 `data/config.local.json`：
+
+```json
+{
+    "githubToken": "ghp_xxxxxxxxxxxxxxxxxxxx"
 }
 ```
 
-**Apache：** 已通过 `.htaccess` 禁止访问 data/ 目录
+`data/config.local.json` 已加入 `.gitignore`。当前仓库中如已有该文件被 Git 跟踪，建议按仓库策略从索引中移出，并轮换曾经提交或暴露过的 Token。
+
+## 使用说明
+
+1. 首页展示全部资源卡片，支持按平台筛选。
+2. 推荐资源会优先展示。
+3. 资源卡片展示名称、简介、平台、最近更新时间和详情入口。
+4. 详情页展示仓库信息、最近 release 和资源文件列表。
+5. 点击加速下载按钮后，系统会用配置的代理地址拼接 GitHub 文件地址。
+
+## 平台识别
+
+资源配置包含 `platforms` 时，首页优先使用配置的平台标签。缺少 `platforms` 时，系统会根据 release asset 文件名识别平台。
+
+| 平台 | 检测关键词 |
+|------|-----------|
+| Android | `.apk`、`arm64`、`armeabi`、`android` |
+| iOS | `.ipa`、`ios` |
+| Windows | `win`、`.exe`、`.msi` |
+| HarmonyOS | `harmony`、`hms` |
+| macOS | `mac`、`.dmg` |
+| Linux | `linux`、`.deb`、`.rpm` |
+
+## 缓存机制
+
+项目使用请求级内存缓存和文件缓存：
+
+| 缓存内容 | 默认 TTL |
+|----------|----------|
+| GitHub API 通用响应 | 15 分钟 |
+| Release 列表 | 15 分钟 |
+| 仓库详情 | 1 小时 |
+| 平台识别结果 | 6 小时 |
+| 资源最近更新时间 | 1 小时 |
+
+缓存文件存储在 `data/cache/`。需要强制刷新时，清空该目录中的缓存文件即可。
+
+## 安全设计
+
+- `index.php` 输出安全响应头：`X-Content-Type-Options`、`X-Frame-Options`、`Referrer-Policy`、`Permissions-Policy`、`Content-Security-Policy`。
+- CSP 限制默认资源来源为 `self`，并启用 `frame-ancestors 'none'`、`form-action 'self'`、`base-uri 'self'`。
+- cURL 启用 `CURLOPT_SSL_VERIFYPEER` 和 `CURLOPT_SSL_VERIFYHOST`，保持 HTTPS 证书校验。
+- `proxyUrls` 仅接受 HTTPS 和 allowlist 域名。
+- `marquee.items[].url` 仅接受 HTTPS URL。
+- 外部链接使用 `target="_blank"` 时同步设置 `rel="noopener noreferrer"`。
+- `.htaccess` 提供 Apache 环境下的敏感文件访问保护和安全头兜底。
+- `data/.htaccess` 阻止直接访问 `data/` 目录。
+
+## 项目结构
+
+```text
+github-accel-downloader/
+├── index.php                     # 主入口、路由、安全响应头、首页和详情页数据组装
+├── includes/
+│   ├── config.php                # 配置加载、代理 URL 校验、跑马灯配置清洗
+│   ├── functions.php             # GitHub API、平台识别、release 规范化、格式化函数
+│   └── cache.php                 # 文件缓存、并发 API 请求、平台和更新时间批量获取
+├── data/
+│   ├── resources.json            # 资源、代理和跑马灯配置
+│   ├── config.local.json.example # 本地敏感配置模板
+│   ├── config.local.json         # 本地敏感配置，生产环境自行创建
+│   ├── .htaccess                 # Apache data 目录访问保护
+│   └── cache/                    # 运行时缓存目录
+├── templates/
+│   ├── home.php                  # 首页模板、跑马灯、资源卡片、平台筛选
+│   └── resource.php              # 详情页模板、release 和下载列表
+├── assets/
+│   ├── bootstrap.min.css         # Bootstrap 5.3 样式
+│   ├── bootstrap.bundle.min.js   # Bootstrap JS
+│   ├── material-theme.css        # Material Design 3 主题样式
+│   ├── shared.css                # 共享样式
+│   ├── theme-switcher.js         # 明暗主题切换
+│   ├── favicon.ico               # 网站图标
+│   └── github-icon.png           # GitHub 图标
+├── .htaccess                     # Apache 访问控制和安全头兜底
+├── .gitignore                    # 本地配置、缓存和日志忽略规则
+├── SECURITY_MIGRATION.md         # Token 安全迁移指南
+└── README.md                     # 项目说明
+```
+
+## 验证命令
+
+```bash
+# 检查 PHP 语法
+php -l index.php
+php -l includes/config.php
+php -l includes/functions.php
+php -l includes/cache.php
+php -l templates/home.php
+php -l templates/resource.php
+
+# 校验资源配置 JSON
+php -r 'json_decode(file_get_contents("data/resources.json")); exit(json_last_error() === JSON_ERROR_NONE ? 0 : 1);'
+
+# 检查 Git 差异中的空白问题
+git diff --check
+
+# 检查首页响应头
+curl -I -s --max-time 15 "http://localhost:8000/"
+
+# 检查首页状态码
+curl -s -o /dev/null -w "%{http_code}" --max-time 15 "http://localhost:8000/"
+
+# 检查详情页状态码
+curl -s -o /dev/null -w "%{http_code}" --max-time 15 "http://localhost:8000/?resource=legado"
+```
 
 ## 常见问题
 
-### Token 不生效
+### Token 无效或额度仍然较低
 
-1. 检查环境变量是否正确设置
-2. 确认 `data/config.local.json` 是否为有效 JSON
-3. 检查 Token 格式：`ghp_` 开头，40 位字符
+1. 检查 `GITHUB_TOKEN` 环境变量是否在 PHP 运行环境中可见。
+2. 检查 `data/config.local.json` 是否为有效 JSON。
+3. 使用细粒度 Token，并授予公开仓库读取权限。
+4. Token 返回 `401 Bad credentials` 时，系统会自动使用匿名请求继续加载公开资源。
 
-### 500 错误
+### 页面返回 500
 
-1. 检查 JSON 配置文件格式
-2. 确认文件权限可读
-3. 查看错误或创建 `data/error.log` 获取详细错误
+1. 检查 PHP 版本和 cURL 扩展。
+2. 检查 `data/resources.json` JSON 格式。
+3. 检查 `data/cache/` 是否可写。
+4. 查看 Web 服务器错误日志。
 
-### 缓存问题
+### 资源平台未显示完整
 
-如需强制刷新缓存，可删除 `data/cache/` 目录下的所有文件。
+1. 优先在资源配置中填写 `platforms`。
+2. 检查 GitHub release asset 文件名是否包含可识别的平台关键词。
+3. 清空 `data/cache/` 后重新访问页面。
 
-## 注意事项
+### HTTPS 请求失败
 
-1. 免费虚拟主机可能限制外部网络连接，请确保主机允许访问 GitHub API
-2. 加速代理服务的稳定性和速度因服务而异
-3. 请遵守 GitHub 的服务条款和合理使用原则
-4. 本项目仅为聚合下载页面，应用版权归原作者所有
-5. 本项目仅供学习和技术研究使用
+1. 检查服务器是否安装 CA 证书包。
+2. 检查虚拟主机是否允许访问 `api.github.com`。
+3. 检查代理地址是否位于 allowlist 且使用 HTTPS。
+
+## 部署注意事项
+
+- 生产环境建议配置 GitHub Token，降低 API 限流影响。
+- Apache 环境会读取项目自带 `.htaccess`；Nginx 需要在站点配置中阻止直接访问 `data/`。
+- `data/cache/` 是运行时目录，适合加入部署持久化目录或保持 Web 用户可写。
+- `data/config.local.json`、`data/cache/` 和日志文件属于本地运行数据，避免提交到代码仓库。
+- 本项目仅聚合公开 GitHub Release 下载入口，应用版权归原作者所有。
 
 ## 更新日志
 
-### v1.7.3 - 安全增强版
-- 支持环境变量存储 GitHub Token
-- 支持本地配置文件 `config.local.json`
-- 添加 `.gitignore` 保护敏感信息
-- 兼容旧配置方式并提示迁移
+### v1.8.0 - 性能与安全增强
+
+- 首页新增跑马灯配置和展示。
+- 首页资源卡片新增最近更新时间。
+- 平台筛选优先使用资源配置中的 `platforms`。
+- 详情页 GitHub 数据改为并发获取。
+- GitHub Token 失效时支持匿名降级。
+- 恢复 cURL TLS 证书校验。
+- 新增安全响应头、CSP、代理 allowlist、外链隔离和敏感目录保护。
+- 移除 Google Fonts 外部依赖，改用系统字体栈。
+
+### v1.7.3 - Token 安全增强
+
+- 支持环境变量存储 GitHub Token。
+- 支持本地配置文件 `data/config.local.json`。
+- 添加 `.gitignore` 保护本地配置、缓存和日志。
+- 提供 `SECURITY_MIGRATION.md` 迁移说明。
 
 ### v1.7.x
-- 添加多平台检测和筛选功能
-- 优化平台检测逻辑
-- 添加推荐资源置顶功能
-- 并发获取资源平台信息
+
+- 添加多平台检测和筛选功能。
+- 优化平台检测逻辑。
+- 添加推荐资源置顶功能。
+- 并发获取资源平台信息。
 
 ### v1.6.x
-- 添加明暗主题切换功能
-- 升级 Material Design 3 风格 UI
-- 优化缓存机制
+
+- 添加明暗主题切换功能。
+- 升级 Material Design 3 风格 UI。
+- 优化缓存机制。
 
 ## 许可证
 
@@ -285,4 +341,4 @@ MIT License
 
 ## 鸣谢
 
-本项目仅为聚合下载页面，应用版权归原作者所有。感谢所有开源贡献者！
+感谢 Legado 生态和相关开源项目贡献者。本项目仅为聚合下载页面，应用版权归原作者所有。

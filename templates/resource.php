@@ -5,9 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= h($resource['name']) ?> - Legado 资源加速下载</title>
     <link rel="icon" href="../assets/favicon.ico" type="image/x-icon">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@500&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <script>
+        (function() {
+            const saved = localStorage.getItem('gh-accel-theme');
+            const theme = saved || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            if (theme === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            }
+        })();
+    </script>
     <link href="../assets/material-theme.css" rel="stylesheet">
 </head>
 <body>
@@ -51,7 +57,7 @@
                 <?php endif; ?>
             </div>
             
-            <a href="https://github.com/<?= h($resource['owner']) ?>/<?= h($resource['repo']) ?>" target="_blank" class="btn btn-outline-primary">
+            <a href="https://github.com/<?= h($resource['owner']) ?>/<?= h($resource['repo']) ?>" target="_blank" rel="noopener noreferrer" class="btn btn-outline-primary">
                 <img src="../assets/github-icon.png" alt="GitHub" width="18" height="18">
                 访问 GitHub 仓库
             </a>
@@ -141,7 +147,7 @@
             <div class="glass d-inline-block px-4 py-2" style="border-radius: 20px; background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px);">
                 <p class="mb-0" style="font-size: 14px; color: var(--md-sys-color-on-surface-variant);">
                     由第三方 GitHub 加速服务提供支持 | 
-                    <a href="https://github.com" target="_blank" style="color: var(--md-sys-color-primary);">GitHub</a>
+                    <a href="https://github.com" target="_blank" rel="noopener noreferrer" style="color: var(--md-sys-color-primary);">GitHub</a>
                 </p>
             </div>
         </footer>

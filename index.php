@@ -12,37 +12,29 @@
 error_reporting(E_ALL);
 ini_set('display_errors', '0');
 
-require_once __DIR__ . '/includes/functions.php';
-require_once __DIR__ . '/includes/cache.php';
-require_once __DIR__ . '/includes/config.php';
+header('X-Content-Type-Options: nosniff');
+header('X-Frame-Options: DENY');
+header('Referrer-Policy: strict-origin-when-cross-origin');
+header('Permissions-Policy: geolocation=(), microphone=(), camera=()');
+header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; form-action 'self'; base-uri 'self'; upgrade-insecure-requests");
 
 define('DATA_DIR', __DIR__ . '/data');
 define('TEMPLATES_DIR', __DIR__ . '/templates');
 define('CACHE_DIR', DATA_DIR . '/cache');
 
-// 安全警告：如果 GitHub Token 在 resources.json 中，提示用户迁移
-$resourcesJson = @json_decode(file_get_contents(DATA_DIR . '/resources.json'), true);
-if (is_array($resourcesJson) && isset($resourcesJson['githubToken']) && !empty($resourcesJson['githubToken'])) {
-    // 记录警告但不阻止运行（兼容旧版本）
-    error_log('安全警告: GitHub Token 存储在 resources.json 中，建议迁移到环境变量或 config.local.json');
-}
+require_once __DIR__ . '/includes/functions.php';
+require_once __DIR__ . '/includes/cache.php';
+require_once __DIR__ . '/includes/config.php';
 
 // 加载安全配置
 $config = loadSecureConfig();
 
+if (!empty($config['legacyTokenInResources'])) {
+    error_log('安全警告: GitHub Token 存储在 resources.json 中，建议迁移到环境变量或 config.local.json');
+}
+
 // 检查资源列表
 $resources = isset($config['resources']) ? $config['resources'] : array();
-
-if (empty($resources)) {
-    // 尝试直接从 resources.json 读取（兼容旧版本）
-    $resourcesFile = DATA_DIR . '/resources.json';
-    if (file_exists($resourcesFile)) {
-        $resourcesData = @json_decode(file_get_contents($resourcesFile), true);
-        if (is_array($resourcesData) && isset($resourcesData['resources']) && !empty($resourcesData['resources'])) {
-            $resources = $resourcesData['resources'];
-        }
-    }
-}
 
 if (empty($resources)) {
     http_response_code(500);
@@ -81,8 +73,9 @@ if (isset($_GET['owner']) && isset($_GET['repo'])) {
     }
     
     $proxyUrls = isset($config['proxyUrls']) ? $config['proxyUrls'] : array('https://ghproxy.net/');
-    $repoInfo = getGitHubRepoInfo($owner, $repo);
-    $releases = getGitHubReleasesWithCache($owner, $repo, isset($resource['usePrerelease']) ? $resource['usePrerelease'] : false);
+    $repoDetail = getGitHubRepoDetailWithCache($owner, $repo, isset($resource['usePrerelease']) ? $resource['usePrerelease'] : false);
+    $repoInfo = $repoDetail['repoInfo'];
+    $releases = $repoDetail['releases'];
     
     if (is_array($releases) && !empty($releases) && empty($releases['error'])) {
         if (!(isset($releases[0]['prerelease']) && $releases[0]['prerelease'])) {
@@ -96,12 +89,16 @@ if (isset($_GET['owner']) && isset($_GET['repo'])) {
 
 // 首页
 
+$marquee = isset($config['marquee']) && is_array($config['marquee']) ? $config['marquee'] : array();
+
 // 批量并发获取平台信息
 if (!empty($resources)) {
     $platforms = getResourcePlatformsBatch($resources);
+    $updatedAt = getResourceUpdatedAtBatch($resources);
     
     foreach ($resources as $index => $resource) {
         $resources[$index]['platforms'] = isset($platforms[$index]) ? $platforms[$index] : array();
+        $resources[$index]['updatedAt'] = isset($updatedAt[$index]) ? $updatedAt[$index] : null;
     }
 }
 
