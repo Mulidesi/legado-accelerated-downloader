@@ -52,13 +52,14 @@
             <?php endif; ?>
         </header>
         
-        <div class="filter-container">
-            <button class="filter-btn active" data-platform="all">全部</button>
-            <button class="filter-btn" data-platform="Android">Android</button>
-            <button class="filter-btn" data-platform="iOS">iOS</button>
-            <button class="filter-btn" data-platform="HarmonyOS">HarmonyOS</button>
-            <button class="filter-btn" data-platform="Windows">Windows</button>
+        <div class="filter-container" role="group" aria-label="按平台筛选">
+            <button class="filter-btn active" data-platform="all" aria-pressed="true">全部</button>
+            <button class="filter-btn" data-platform="Android" aria-pressed="false">Android</button>
+            <button class="filter-btn" data-platform="iOS" aria-pressed="false">iOS</button>
+            <button class="filter-btn" data-platform="HarmonyOS" aria-pressed="false">HarmonyOS</button>
+            <button class="filter-btn" data-platform="Windows" aria-pressed="false">Windows</button>
         </div>
+        <div class="sr-only" aria-live="polite" id="filter-announcer"></div>
         
         <div class="row">
             <?php if (empty($resources)): ?>
@@ -72,32 +73,32 @@
                     <div class="col-md-6 col-lg-4 resource-item" data-platforms='<?= json_encode($resource['platforms'] ?? []) ?>'>
                         <a href="index.php?owner=<?= urlencode($resource['owner']) ?>&repo=<?= urlencode($resource['repo']) ?>" class="resource-card-wrapper">
                             <div class="resource-card p-4 <?= $resource['recommended'] ?? false ? 'recommended' : '' ?>">
-                                <h5 class="mb-3" style="display: flex; align-items: center; margin-bottom: 12px !important; flex: 0 0 auto; min-height: 32px;">
-                                    <img src="assets/github-icon.png" alt="GitHub" width="24" height="24" style="flex-shrink: 0; margin-right: 8px;">
-                                    <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0;"><?= h($resource['name']) ?></span>
+                                <h5>
+                                    <img src="assets/github-icon.png" alt="GitHub" width="24" height="24" class="resource-card-icon" loading="lazy">
+                                    <span class="resource-card-title-text"><?= h($resource['name']) ?></span>
                                 </h5>
-                                <div class="resource-description mb-3" style="min-height: 60px; max-height: 80px; overflow-y: auto; margin-bottom: 12px !important; flex: 0 0 auto;">
+                                <div class="resource-description">
                                     <?= nl2br(h($resource['description'])) ?>
                                 </div>
-                                <div style="margin-bottom: 12px; flex: 0 0 auto;">
+                                <div class="resource-card-platforms">
                                     <?php if (!empty($resource['platforms'])): ?>
                                         <?php foreach ($resource['platforms'] as $platform): ?>
                                             <span class="platform-badge"><?= $platform ?></span>
                                         <?php endforeach; ?>
                                     <?php endif; ?>
                                 </div>
-                                <div style="flex: 1 1 auto;"></div>
+                                <div class="resource-card-spacer"></div>
                                 <div>
                                     <span class="btn btn-primary">
                                         查看详情
                                     </span>
-                                    <span class="badge <?= $resource['usePrerelease'] ? 'bg-warning' : 'bg-success' ?>" style="float: right; margin-top: 8px; opacity: 0.85;">
+                                    <span class="badge <?= $resource['usePrerelease'] ? 'bg-warning' : 'bg-success' ?> resource-card-version-badge">
                                         <?= $resource['usePrerelease'] ? '预发布' : '正式版' ?>
                                     </span>
                                 </div>
-                                <div class="mt-auto" style="border-top: 1px solid var(--md-sys-color-outline); opacity: 0.6; padding-top: 12px; margin-top: 12px !important;">
+                                <div class="resource-card-footer">
                                     <small>
-                                        <img src="assets/github-icon.png" alt="GitHub" width="14" height="14" class="me-1" style="vertical-align: text-bottom;">
+                                        <img src="assets/github-icon.png" alt="GitHub" width="14" height="14" class="me-1 icon-inline" loading="lazy">
                                         <?= h($resource['owner'] . '/' . $resource['repo']) ?>
                                     </small>
                                     <?php if (!empty($resource['updatedAt'])): ?>
@@ -112,10 +113,10 @@
         </div>
         
         <footer class="mt-5">
-            <div class="glass d-inline-block px-4 py-2" style="border-radius: 20px; background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px);">
-                <p class="mb-0" style="font-size: 14px; color: var(--md-sys-color-on-surface-variant);">
+            <div class="glass d-inline-block px-4 py-2">
+                <p class="mb-0 footer-text">
                     由第三方 GitHub 加速服务提供支持 | 
-                    <a href="https://github.com/Mulidesi/legado-accelerated-downloader" target="_blank" rel="noopener noreferrer" style="color: var(--md-sys-color-primary);">GitHub</a>
+                    <a href="https://github.com/Mulidesi/legado-accelerated-downloader" target="_blank" rel="noopener noreferrer" class="footer-link">GitHub</a>
                 </p>
             </div>
         </footer>
@@ -124,6 +125,7 @@
     <script>
         (function() {
             const filterBtns = document.querySelectorAll('.filter-btn');
+            const announcer = document.getElementById('filter-announcer');
             const resourceItems = Array.from(document.querySelectorAll('.resource-item')).map(item => ({
                 el: item,
                 platforms: JSON.parse(item.dataset.platforms || '[]')
@@ -133,16 +135,26 @@
                 btn.addEventListener('click', function() {
                     const platform = this.dataset.platform;
                     
-                    filterBtns.forEach(b => b.classList.remove('active'));
+                    filterBtns.forEach(b => {
+                        b.classList.remove('active');
+                        b.setAttribute('aria-pressed', 'false');
+                    });
                     this.classList.add('active');
+                    this.setAttribute('aria-pressed', 'true');
                     
+                    let visible = 0;
                     resourceItems.forEach(item => {
                         if (platform === 'all' || item.platforms.includes(platform)) {
                             item.el.style.display = '';
+                            visible++;
                         } else {
                             item.el.style.display = 'none';
                         }
                     });
+                    
+                    if (announcer) {
+                        announcer.textContent = '筛选完毕，共显示 ' + visible + ' 个资源';
+                    }
                 });
             });
         })();

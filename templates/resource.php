@@ -37,7 +37,7 @@
         
         <div class="card p-4 mb-4">
             <h5 class="mb-3">资源简介</h5>
-            <p style="line-height: 1.6; margin-bottom: 16px;"><?= nl2br(h($resource['description'])) ?></p>
+            <p class="release-description"><?= nl2br(h($resource['description'])) ?></p>
             
             <div class="stats-container mb-3">
                 <?php if ($repoInfo): ?>
@@ -58,7 +58,7 @@
             </div>
             
             <a href="https://github.com/<?= h($resource['owner']) ?>/<?= h($resource['repo']) ?>" target="_blank" rel="noopener noreferrer" class="btn btn-outline-primary">
-                <img src="../assets/github-icon.png" alt="GitHub" width="18" height="18">
+                <img src="../assets/github-icon.png" alt="GitHub" width="18" height="18" loading="lazy">
                 访问 GitHub 仓库
             </a>
         </div>
@@ -89,10 +89,10 @@
                                     <?php endif; ?>
                                     <h5 class="mt-2 mb-0"><?= h($release['name'] ?: $release['tag_name']) ?></h5>
                                 </div>
-                                <small style="display: flex; align-items: center; gap: 4px;">
+                                <small class="release-date">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
                                         <path d="M8 3.5a.5.5 0 0 0-1 0V9a.5.5 0 0 0 .252.434l3.5 2a.5.5 0 0 0 .496-.868L8 8.71V3.5z"/>
-                                        <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm7-8A7 7 0 1 1 1 8a7 7 0 0 1 14 0z"/>
+                                        <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 16zm7-8A7 7 0 1 1 1 8a7 7 0 0 1 14 0z"/>
                                     </svg>
                                     <?= formatDate($release['published_at']) ?>
                                 </small>
@@ -114,19 +114,17 @@
                                         $fileSize = formatFileSizeOptimized($asset['size']);
                                         $downloadUrl = buildAcceleratedUrlOptimized($proxyUrls, $asset['browser_download_url']);
                                         ?>
-                                        <div class="asset-item" onclick="downloadFile('<?= h($downloadUrl) ?>', '<?= h($resource['owner']) ?>', '<?= h($resource['repo']) ?>', '<?= h($filename) ?>')">
-                                            <div style="display: flex; align-items: center; gap: 12px;">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16" style="flex-shrink: 0; color: var(--md-sys-color-primary);">
+                                        <div class="asset-item" onclick="window.open('<?= h($downloadUrl) ?>', '_blank')">
+                                            <div class="asset-item-content">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16" class="download-icon">
                                                     <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
                                                     <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
                                                 </svg>
-                                                <div style="flex: 1; min-width: 0;">
-                                                    <div style="overflow-x: auto; overflow-y: hidden; white-space: nowrap; scrollbar-width: none; -ms-overflow-style: none;">
-                                                        <strong><?= h($filename) ?></strong>
-                                                    </div>
+                                                <div class="asset-item-filename">
+                                                    <strong><?= h($filename) ?></strong>
                                                 </div>
-                                                <div style="background-color: rgba(255, 255, 255, 0.2); padding: 4px 12px; border-radius: 12px; flex-shrink: 0;" class="file-size">
-                                                    <small style="color: var(--md-sys-color-on-surface-variant); font-size: 12px;"><?= $fileSize ?></small>
+                                                <div class="file-size">
+                                                    <small><?= $fileSize ?></small>
                                                 </div>
                                             </div>
                                         </div>
@@ -144,20 +142,15 @@
         <?php endif; ?>
         
         <footer class="mt-5">
-            <div class="glass d-inline-block px-4 py-2" style="border-radius: 20px; background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px);">
-                <p class="mb-0" style="font-size: 14px; color: var(--md-sys-color-on-surface-variant);">
+            <div class="glass d-inline-block px-4 py-2">
+                <p class="mb-0 footer-text">
                     由第三方 GitHub 加速服务提供支持 | 
-                    <a href="https://github.com/Mulidesi/legado-accelerated-downloader" target="_blank" rel="noopener noreferrer" style="color: var(--md-sys-color-primary);">GitHub</a>
+                    <a href="https://github.com/Mulidesi/legado-accelerated-downloader" target="_blank" rel="noopener noreferrer" class="footer-link">GitHub</a>
                 </p>
             </div>
         </footer>
     </div>
     
-    <script>
-        function downloadFile(url, owner, repo, filename) {
-            window.open(url, '_blank');
-        }
-    </script>
     <script src="../assets/theme-switcher.js"></script>
 </body>
 </html>

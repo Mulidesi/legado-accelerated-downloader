@@ -2,7 +2,7 @@
 
 基于 PHP 的 GitHub Release 聚合下载站点，用于集中展示 Legado 相关资源，并通过配置的 HTTPS 加速代理生成下载入口。项目采用单入口 PHP 架构，适合部署在支持 PHP 和 cURL 的虚拟主机、Apache、Nginx 或轻量 PHP 运行环境中。
 
-[![Version](https://img.shields.io/badge/version-1.8.2-blue.svg)](https://github.com)
+[![Version](https://img.shields.io/badge/version-1.8.3-blue.svg)](https://github.com)
 [![PHP](https://img.shields.io/badge/PHP-7.4+-blue.svg)](https://php.net)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
@@ -22,6 +22,10 @@
 - GitHub 仓库详情和 release 信息并发请求，提升详情页加载速度。
 - GitHub Token 支持环境变量和本地配置文件，Token 失效时自动匿名降级。
 - Material Design 3 风格 UI，支持明暗主题切换和移动端访问。
+- 卡片入场动画和骨架屏 shimmer 效果，减少白屏等待感。
+- 图片原生懒加载，减少首屏请求数。
+- 筛选按钮无障碍适配（ARIA），支持屏幕阅读器。
+- 零内联样式，全部 CSS 语义化类管理。
 - 内置安全响应头、CSP、TLS 校验、外链隔离和敏感目录访问保护。
 
 ## 环境要求
@@ -45,7 +49,7 @@ php -S localhost:8000
 
 ### 部署到服务器
 
-1. 上传项目文件到 Web 根目录或站点目录。
+1. 上传 `legado-deploy-v1.8.3.zip` 到服务器并解压，或直接上传项目文件到 Web 根目录。
 2. 根据需要编辑 `data/resources.json`。
 3. 配置 GitHub Token。
 4. 确认 Web 服务器可写入 `data/cache/`。
@@ -231,10 +235,11 @@ github-accel-downloader/
 ├── assets/
 │   ├── bootstrap.min.css         # Bootstrap 5.3 样式
 │   ├── bootstrap.bundle.min.js   # Bootstrap JS
-│   ├── material-theme.css        # Material Design 3 主题样式（含玻璃态效果）
+│   ├── material-theme.css        # Material Design 3 主题样式（含玻璃态、骨架屏效果）
 │   ├── theme-switcher.js         # 明暗主题切换
 │   ├── favicon.ico               # 网站图标
 │   └── github-icon.png           # GitHub 图标
+├── shared.css                    # 已废弃，合并至 material-theme.css
 ├── .htaccess                     # Apache 访问控制和安全头兜底
 ├── .gitignore                    # 本地配置、缓存和日志忽略规则
 ├── SECURITY_MIGRATION.md         # Token 安全迁移指南
@@ -305,6 +310,21 @@ curl -s -o /dev/null -w "%{http_code}" --max-time 15 "http://localhost:8000/?res
 - 本项目仅聚合公开 GitHub Release 下载入口，应用版权归原作者所有。
 
 ## 更新日志
+
+### v1.8.3 - UI 全面检修与无障碍优化
+
+- 全部内联样式迁移至语义化 CSS 类，移除 17+ 处分散的 `style=""` 属性。
+- 删除重复 CSS 声明（`.resource-card.recommended::before` 冲突块）。
+- 修复硬编码颜色，改用主题 CSS 变量，添加深色模式全覆盖配色。
+- 移除 `!important` 声明。
+- 新增 15 个语义化 CSS 类（`.release-description`、`.download-icon`、`.footer-text`、`.footer-link`、`.asset-item-content`、`.asset-item-filename` 等）。
+- 资源卡片改用 `min-height` 自适应高度，长文字不再截断。
+- 移除冗余的 `downloadFile()` JS 函数。
+- 卡片入场 fade-in-up 动画，逐张渐入（0.00s ~ 0.45s 延迟）。
+- 新增骨架屏 shimmer 扫光效果（首次渲染播放一次），支持深色模式。
+- 筛选按钮添加 `aria-pressed`、`role="group"` 和结果播报区域。
+- 所有图片添加 `loading="lazy"`，首屏 Logo 除外。
+- SVG 图标添加 `flex-shrink: 0; display: block;`，防止 flex 裁剪。
 
 ### v1.8.2 - 代码精简与性能优化
 

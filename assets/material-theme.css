@@ -234,7 +234,30 @@ body {
 
 .resource-item {
     display: flex;
-    height: 328px;
+    min-height: 328px;
+    position: relative;
+}
+
+/* 骨架屏 shimmer 动画 - 仅在首次渲染时播放一次 */
+@keyframes skeleton-shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+.resource-item::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent 30%, rgba(255,255,255,0.10) 50%, transparent 70%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.2s ease-in-out 0.3s 1 forwards;
+    pointer-events: none;
+    border-radius: inherit;
+    z-index: 1;
+}
+
+[data-theme="dark"] .resource-item::after {
+    background: linear-gradient(90deg, transparent 30%, rgba(255,255,255,0.06) 50%, transparent 70%);
 }
 
 .resource-card {
@@ -261,22 +284,6 @@ body {
     content: '站长推荐';
     position: absolute;
     top: 8px;
-    right: 8px;
-    background: linear-gradient(135deg, #FFC107 0%, #FFA000 100%);
-    color: #000;
-    font-size: 11px;
-    font-weight: 600;
-    padding: 4px 8px;
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-    z-index: 1;
-    white-space: nowrap;
-}
-
-.resource-card.recommended::before {
-    content: '站长推荐';
-    position: absolute;
-    top: 8px;
     right: -30px;
     background: linear-gradient(135deg, #FFC107 0%, #FFA000 100%);
     color: #000;
@@ -296,11 +303,21 @@ body {
 .resource-card h5 {
     font: var(--md-sys-typescale-title-large);
     color: var(--md-sys-color-on-surface);
+    display: flex;
+    align-items: center;
+    margin-bottom: 12px;
+    flex: 0 0 auto;
+    min-height: 32px;
 }
 
 .resource-card .resource-description {
     font: var(--md-sys-typescale-body-medium);
     color: var(--md-sys-color-on-surface-variant);
+    min-height: 60px;
+    max-height: 80px;
+    overflow-y: auto;
+    margin-bottom: 12px;
+    flex: 0 0 auto;
 }
 
 .resource-updated {
@@ -351,13 +368,21 @@ body {
 }
 
 .badge.bg-success {
-    background-color: rgba(76, 175, 80, 0.7) !important;
-    color: #fff !important;
+    background-color: rgba(76, 175, 80, 0.7);
+    color: #fff;
 }
 
 .badge.bg-warning {
-    background-color: rgba(255, 193, 7, 0.7) !important;
-    color: #000 !important;
+    background-color: rgba(255, 193, 7, 0.7);
+    color: #000;
+}
+
+[data-theme="dark"] .badge.bg-success {
+    background-color: rgba(76, 175, 80, 0.5);
+}
+
+[data-theme="dark"] .badge.bg-warning {
+    background-color: rgba(255, 193, 7, 0.5);
 }
 
 /* 版本说明体 */
@@ -387,11 +412,6 @@ body {
 }
 
 /* 资源描述滚动条 */
-.resource-description {
-    font: var(--md-sys-typescale-body-medium);
-    color: var(--md-sys-color-on-surface-variant);
-}
-
 .resource-description::-webkit-scrollbar {
     width: 6px;
 }
@@ -431,16 +451,17 @@ body {
 
 /* 文件大小标签 */
 .file-size {
-    background-color: rgba(255, 255, 255, 0.2);
+    background-color: var(--md-sys-color-surface-container);
     padding: 4px 12px;
     border-radius: 12px;
     font-size: 12px;
     color: var(--md-sys-color-on-surface-variant);
     transition: all 0.3s ease;
+    flex-shrink: 0;
 }
 
 [data-theme="dark"] .file-size {
-    background-color: rgba(255, 255, 255, 0.1);
+    background-color: var(--md-sys-color-surface-container-high);
 }
 
 .asset-item:hover .file-size {
@@ -699,6 +720,144 @@ a:hover {
 body, .card, .resource-card, .release-card, .asset-item, .btn, .theme-toggle {
     transition: background-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
 }
+
+/* 资源卡片 - 子元素 */
+.resource-card-title-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+}
+
+.resource-card-icon {
+    flex-shrink: 0;
+    margin-right: 8px;
+}
+
+.resource-card-platforms {
+    margin-bottom: 12px;
+    flex: 0 0 auto;
+}
+
+.resource-card-spacer {
+    flex: 1 1 auto;
+}
+
+.resource-card-footer {
+    border-top: 1px solid var(--md-sys-color-outline);
+    opacity: 0.6;
+    padding-top: 12px;
+    margin-top: 12px;
+}
+
+.resource-card-version-badge {
+    float: right;
+    margin-top: 8px;
+    opacity: 0.85;
+}
+
+/* 资产项 - 子元素 */
+.asset-item-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.asset-item-filename {
+    flex: 1;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+/* 版本发布日期 */
+.release-date {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.release-date svg {
+    flex-shrink: 0;
+    display: block;
+}
+
+/* 通用组件类 - 迁移自内联样式 */
+.release-description {
+    line-height: 1.6;
+    margin-bottom: 16px;
+}
+
+.download-icon {
+    flex-shrink: 0;
+    color: var(--md-sys-color-primary);
+}
+
+.footer-text {
+    font-size: 14px;
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+.footer-link {
+    color: var(--md-sys-color-primary);
+}
+
+.icon-inline {
+    vertical-align: text-bottom;
+}
+
+/* 屏幕阅读器专用 */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    border: 0;
+}
+
+/* 卡片入场动画 */
+@keyframes card-entrance {
+    from {
+        opacity: 0;
+        transform: translateY(24px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.resource-item {
+    animation: card-entrance 0.4s ease-out both;
+}
+
+.release-card-wrapper {
+    animation: card-entrance 0.4s ease-out both;
+}
+
+.resource-item:nth-child(1) { animation-delay: 0.00s; }
+.resource-item:nth-child(2) { animation-delay: 0.05s; }
+.resource-item:nth-child(3) { animation-delay: 0.10s; }
+.resource-item:nth-child(4) { animation-delay: 0.15s; }
+.resource-item:nth-child(5) { animation-delay: 0.20s; }
+.resource-item:nth-child(6) { animation-delay: 0.25s; }
+.resource-item:nth-child(7) { animation-delay: 0.30s; }
+.resource-item:nth-child(8) { animation-delay: 0.35s; }
+.resource-item:nth-child(9) { animation-delay: 0.40s; }
+.resource-item:nth-child(10) { animation-delay: 0.45s; }
+
+.release-card-wrapper:nth-child(1) { animation-delay: 0.00s; }
+.release-card-wrapper:nth-child(2) { animation-delay: 0.08s; }
+.release-card-wrapper:nth-child(3) { animation-delay: 0.16s; }
+.release-card-wrapper:nth-child(4) { animation-delay: 0.24s; }
+.release-card-wrapper:nth-child(5) { animation-delay: 0.32s; }
 
 /* Glass 效果 - from previous shared.css */
 .glass {
