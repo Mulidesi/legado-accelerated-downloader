@@ -3,10 +3,6 @@
  * 公共函数库 - 兼容性修复版
  */
 
-// 内存缓存存储（备用）
-$GLOBALS['_cache'] = array();
-$GLOBALS['_cache_ttl'] = array();
-
 if (!defined('API_CACHE_TTL')) {
     define('API_CACHE_TTL', 900);
 }
@@ -21,28 +17,6 @@ if (!defined('PLATFORMS_CACHE_TTL')) {
 }
 if (!defined('RESOURCE_UPDATE_CACHE_TTL')) {
     define('RESOURCE_UPDATE_CACHE_TTL', 3600);
-}
-
-/**
- * 获取内存缓存
- */
-function _cache_get($key) {
-    if (!isset($GLOBALS['_cache'][$key])) {
-        return null;
-    }
-    if (isset($GLOBALS['_cache_ttl'][$key]) && $GLOBALS['_cache_ttl'][$key] < time()) {
-        unset($GLOBALS['_cache'][$key], $GLOBALS['_cache_ttl'][$key]);
-        return null;
-    }
-    return $GLOBALS['_cache'][$key];
-}
-
-/**
- * 设置内存缓存
- */
-function _cache_set($key, $value, $ttl = 300) {
-    $GLOBALS['_cache'][$key] = $value;
-    $GLOBALS['_cache_ttl'][$key] = time() + $ttl;
 }
 
 /**
@@ -120,6 +94,26 @@ function getGitHubApiHeaders($includeToken = true) {
 }
 
 /**
+ * 创建 cURL 句柄
+ */
+function _create_curl_handle($url, $timeout = 15, $includeToken = true) {
+    $ch = curl_init();
+    if ($ch === false) {
+        return false;
+    }
+    curl_setopt_array($ch, array(
+        CURLOPT_URL => $url,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => $timeout,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_HTTPHEADER => getGitHubApiHeaders($includeToken),
+        CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_SSL_VERIFYHOST => 2,
+    ));
+    return $ch;
+}
+
+/**
  * 统一 GitHub API 请求
  */
 function _github_api_request($url) {
@@ -129,46 +123,20 @@ function _github_api_request($url) {
         return $cached;
     }
     
-    // 如果 file_cache 不可用，尝试内存缓存
-    $cached = _cache_get($cacheKey);
-    if ($cached !== null) {
-        return $cached;
-    }
-    
-    $ch = curl_init();
+    $ch = _create_curl_handle($url);
     if ($ch === false) {
         return null;
     }
-    
-    curl_setopt_array($ch, array(
-        CURLOPT_URL => $url,
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT => 15,
-        CURLOPT_FOLLOWLOCATION => true,
-        CURLOPT_HTTPHEADER => getGitHubApiHeaders(),
-        CURLOPT_SSL_VERIFYPEER => true,
-        CURLOPT_SSL_VERIFYHOST => 2,
-    ));
     
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
 
     if ($httpCode === 401 && getGitHubToken() !== '') {
-        $ch = curl_init();
+        $ch = _create_curl_handle($url, 15, false);
         if ($ch === false) {
             return null;
         }
-
-        curl_setopt_array($ch, array(
-            CURLOPT_URL => $url,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => 15,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_HTTPHEADER => getGitHubApiHeaders(false),
-            CURLOPT_SSL_VERIFYPEER => true,
-            CURLOPT_SSL_VERIFYHOST => 2,
-        ));
 
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -184,7 +152,6 @@ function _github_api_request($url) {
         return null;
     }
     
-    _cache_set($cacheKey, $data, API_CACHE_TTL);
     file_cache_set($cacheKey, $data, API_CACHE_TTL);
     return $data;
 }
@@ -237,22 +204,15 @@ function getGitHubReleasesWithCache($owner, $repo, $includePrerelease = false) {
         return $cached;
     }
 
-    $cached = _cache_get($cacheKey);
-    if ($cached !== null) {
-        return $cached;
-    }
-
     $data = _github_api_request("https://api.github.com/repos/{$owner}/{$repo}/releases?per_page=5");
 
     if ($data === null) {
         $result = array('error' => 'api', 'message' => '获取 release 失败');
-        _cache_set($cacheKey, $result, 30);
         return $result;
     }
 
     $result = normalizeGitHubReleases($data, $includePrerelease);
 
-    _cache_set($cacheKey, $result, RELEASES_CACHE_TTL);
     file_cache_set($cacheKey, $result, RELEASES_CACHE_TTL);
     return $result;
 }
@@ -268,15 +228,9 @@ function getGitHubRepoInfo($owner, $repo) {
         return $cached;
     }
     
-    $cached = _cache_get($cacheKey);
-    if ($cached !== null) {
-        return $cached;
-    }
-    
     $data = _github_api_request("https://api.github.com/repos/{$owner}/{$repo}");
     
     if ($data === null) {
-        _cache_set($cacheKey, null, 60);
         return null;
     }
     
@@ -285,7 +239,6 @@ function getGitHubRepoInfo($owner, $repo) {
         'forks_count' => isset($data['forks_count']) ? $data['forks_count'] : 0,
     );
     
-    _cache_set($cacheKey, $result, REPO_INFO_CACHE_TTL);
     file_cache_set($cacheKey, $result, REPO_INFO_CACHE_TTL);
     return $result;
 }
@@ -298,14 +251,8 @@ function getGitHubRepoDetailWithCache($owner, $repo, $includePrerelease = false)
     $releasesCacheKey = "releases:{$owner}/{$repo}:" . ($includePrerelease ? '1' : '0');
 
     $repoInfo = file_cache_get($repoCacheKey);
-    if ($repoInfo === null) {
-        $repoInfo = _cache_get($repoCacheKey);
-    }
 
     $releases = file_cache_get($releasesCacheKey);
-    if ($releases === null) {
-        $releases = _cache_get($releasesCacheKey);
-    }
 
     $urls = array();
     if ($repoInfo === null) {
@@ -325,7 +272,6 @@ function getGitHubRepoDetailWithCache($owner, $repo, $includePrerelease = false)
                     'stargazers_count' => isset($data['stargazers_count']) ? $data['stargazers_count'] : 0,
                     'forks_count' => isset($data['forks_count']) ? $data['forks_count'] : 0,
                 );
-                _cache_set($repoCacheKey, $repoInfo, REPO_INFO_CACHE_TTL);
                 file_cache_set($repoCacheKey, $repoInfo, REPO_INFO_CACHE_TTL);
             }
         }
@@ -334,11 +280,9 @@ function getGitHubRepoDetailWithCache($owner, $repo, $includePrerelease = false)
             $data = isset($responses['releases']) ? $responses['releases'] : null;
             if (is_array($data)) {
                 $releases = normalizeGitHubReleases($data, $includePrerelease);
-                _cache_set($releasesCacheKey, $releases, RELEASES_CACHE_TTL);
                 file_cache_set($releasesCacheKey, $releases, RELEASES_CACHE_TTL);
             } else {
                 $releases = array('error' => 'api', 'message' => '获取 release 失败');
-                _cache_set($releasesCacheKey, $releases, 30);
             }
         }
     }

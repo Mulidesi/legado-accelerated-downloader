@@ -3,20 +3,6 @@
  * 文件缓存系统 - 兼容性修复版
  */
 
-// 缓存目录定义（如果未定义）
-if (!defined('CACHE_DIR')) {
-    define('CACHE_DIR', __DIR__ . '/../data/cache');
-}
-if (!defined('API_CACHE_TTL')) {
-    define('API_CACHE_TTL', 900);
-}
-if (!defined('PLATFORMS_CACHE_TTL')) {
-    define('PLATFORMS_CACHE_TTL', 21600);
-}
-if (!defined('RESOURCE_UPDATE_CACHE_TTL')) {
-    define('RESOURCE_UPDATE_CACHE_TTL', 3600);
-}
-
 // 确保缓存目录存在
 if (!is_dir(CACHE_DIR)) {
     @mkdir(CACHE_DIR, 0755, true);
@@ -126,22 +112,12 @@ function github_api_multi_request($urls, $timeout = 15, $cacheTtl = API_CACHE_TT
     }
     
     $chs = array();
-    $headers = getGitHubApiHeaders();
     
     foreach ($urls_to_fetch as $key => $url) {
-        $ch = curl_init();
+        $ch = _create_curl_handle($url, $timeout);
         if ($ch === false) {
             continue;
         }
-        curl_setopt_array($ch, array(
-            CURLOPT_URL => $url,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => $timeout,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_HTTPHEADER => $headers,
-            CURLOPT_SSL_VERIFYPEER => true,
-            CURLOPT_SSL_VERIFYHOST => 2,
-        ));
         curl_multi_add_handle($mh, $ch);
         $chs[$key] = $ch;
     }
@@ -186,7 +162,7 @@ function github_api_multi_request($urls, $timeout = 15, $cacheTtl = API_CACHE_TT
                 $results[$key] = null;
             }
         } elseif ($httpCode === 401 && getGitHubToken() !== '') {
-            $results[$key] = github_api_single_request($urls_to_fetch[$key], $timeout, $cacheTtl, false);
+            $results[$key] = github_api_single_request($urls_to_fetch[$key], $timeout, $cacheTtl, true);
         } else {
             $results[$key] = null;
         }
@@ -206,20 +182,10 @@ function github_api_single_request($url, $timeout = 15, $cacheTtl = API_CACHE_TT
         return $cached;
     }
     
-    $ch = curl_init();
+    $ch = _create_curl_handle($url, $timeout, $includeToken);
     if ($ch === false) {
         return null;
     }
-    
-    curl_setopt_array($ch, array(
-        CURLOPT_URL => $url,
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT => $timeout,
-        CURLOPT_FOLLOWLOCATION => true,
-        CURLOPT_HTTPHEADER => getGitHubApiHeaders($includeToken),
-        CURLOPT_SSL_VERIFYPEER => true,
-        CURLOPT_SSL_VERIFYHOST => 2,
-    ));
     
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -248,9 +214,10 @@ function getResourcePlatformsBatch($resources) {
         return array();
     }
     
-    // 构建请求列表
+    // 构建请求列表，按 owner/repo 去重
     $urls = array();
     $resourceMap = array();
+    $repoKeys = array();
     
     foreach ($resources as $index => $resource) {
         if (isset($resource['platforms']) && is_array($resource['platforms'])) {
@@ -273,16 +240,24 @@ function getResourcePlatformsBatch($resources) {
             continue;
         }
         
-        $url = "https://api.github.com/repos/{$key}/releases?per_page=3";
-        $urls[$index] = $url;
+        if (!isset($repoKeys[$key])) {
+            $repoKeys[$key] = array();
+        }
+        $repoKeys[$key][] = $index;
         $resourceMap[$index] = null;
+    }
+    
+    // 按唯一 repo 构建请求列表
+    foreach ($repoKeys as $key => $indices) {
+        $urls[$key] = "https://api.github.com/repos/{$key}/releases?per_page=3";
     }
     
     // 并发请求
     if (!empty($urls)) {
         $responses = github_api_multi_request($urls, 15, PLATFORMS_CACHE_TTL);
         
-        foreach ($responses as $index => $data) {
+        foreach ($responses as $key => $data) {
+            $indices = $repoKeys[$key];
             $platforms = array();
             
             if (is_array($data)) {
@@ -296,27 +271,30 @@ function getResourcePlatformsBatch($resources) {
             }
             
             // 回退检测
-            if (empty($platforms) && isset($resources[$index]['repo'])) {
-                $lower = strtolower($resources[$index]['repo']);
-                if (strpos($lower, 'legado') !== false || strpos($lower, 'reader') !== false) {
-                    $platforms[] = 'Android';
-                }
-                if (strpos($lower, 'ios') !== false) {
-                    $platforms[] = 'iOS';
-                }
-                if (strpos($lower, 'win') !== false) {
-                    $platforms[] = 'Windows';
+            if (empty($platforms) && count($indices) > 0) {
+                $firstResource = $resources[$indices[0]];
+                if (isset($firstResource['repo'])) {
+                    $lower = strtolower($firstResource['repo']);
+                    if (strpos($lower, 'legado') !== false || strpos($lower, 'reader') !== false) {
+                        $platforms[] = 'Android';
+                    }
+                    if (strpos($lower, 'ios') !== false) {
+                        $platforms[] = 'iOS';
+                    }
+                    if (strpos($lower, 'win') !== false) {
+                        $platforms[] = 'Windows';
+                    }
                 }
             }
             
             $platforms = array_values(array_unique($platforms));
-            $resourceMap[$index] = $platforms;
             
-            // 写入缓存
-            if (isset($resources[$index]['owner']) && isset($resources[$index]['repo'])) {
-                $key = $resources[$index]['owner'] . '/' . $resources[$index]['repo'];
-                file_cache_set("platforms:{$key}", $platforms, PLATFORMS_CACHE_TTL);
+            // 应用到所有共享该 repo 的资源
+            foreach ($indices as $idx) {
+                $resourceMap[$idx] = $platforms;
             }
+            
+            file_cache_set("platforms:{$key}", $platforms, PLATFORMS_CACHE_TTL);
         }
     }
     
@@ -333,6 +311,7 @@ function getResourceUpdatedAtBatch($resources) {
 
     $urls = array();
     $resourceMap = array();
+    $repoKeys = array();
 
     foreach ($resources as $index => $resource) {
         if (!empty($resource['updatedAt'])) {
@@ -353,23 +332,33 @@ function getResourceUpdatedAtBatch($resources) {
             continue;
         }
 
-        $urls[$index] = "https://api.github.com/repos/{$key}/releases?per_page=1";
+        if (!isset($repoKeys[$key])) {
+            $repoKeys[$key] = array();
+        }
+        $repoKeys[$key][] = $index;
         $resourceMap[$index] = null;
+    }
+
+    // 按唯一 repo 构建请求列表
+    foreach ($repoKeys as $key => $indices) {
+        $urls[$key] = "https://api.github.com/repos/{$key}/releases?per_page=1";
     }
 
     if (!empty($urls)) {
         $responses = github_api_multi_request($urls, 15, RESOURCE_UPDATE_CACHE_TTL);
 
-        foreach ($responses as $index => $data) {
+        foreach ($responses as $key => $data) {
+            $indices = $repoKeys[$key];
             $updatedAt = null;
             if (is_array($data) && isset($data[0]) && is_array($data[0])) {
                 $updatedAt = isset($data[0]['published_at']) ? $data[0]['published_at'] : null;
             }
 
-            $resourceMap[$index] = $updatedAt;
+            foreach ($indices as $idx) {
+                $resourceMap[$idx] = $updatedAt;
+            }
 
-            if ($updatedAt !== null && isset($resources[$index]['owner']) && isset($resources[$index]['repo'])) {
-                $key = $resources[$index]['owner'] . '/' . $resources[$index]['repo'];
+            if ($updatedAt !== null) {
                 file_cache_set("updated_at:{$key}", $updatedAt, RESOURCE_UPDATE_CACHE_TTL);
             }
         }

@@ -2,7 +2,7 @@
 
 基于 PHP 的 GitHub Release 聚合下载站点，用于集中展示 Legado 相关资源，并通过配置的 HTTPS 加速代理生成下载入口。项目采用单入口 PHP 架构，适合部署在支持 PHP 和 cURL 的虚拟主机、Apache、Nginx 或轻量 PHP 运行环境中。
 
-[![Version](https://img.shields.io/badge/version-1.8.1-blue.svg)](https://github.com)
+[![Version](https://img.shields.io/badge/version-1.8.2-blue.svg)](https://github.com)
 [![PHP](https://img.shields.io/badge/PHP-7.4+-blue.svg)](https://php.net)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
@@ -17,7 +17,8 @@
 - 支持多组 HTTPS 下载代理，并限制代理域名 allowlist。
 - 首页展示每个资源的最近更新时间。
 - 详情页展示最近 release、资源文件、平台标签和加速下载按钮。
-- 文件缓存和请求级内存缓存共同降低 GitHub API 调用量。
+- 文件缓存降低 GitHub API 调用量，减少重复请求。
+- 相同 GitHub 仓库的批量查询自动去重，避免冗余 API 调用。
 - GitHub 仓库详情和 release 信息并发请求，提升详情页加载速度。
 - GitHub Token 支持环境变量和本地配置文件，Token 失效时自动匿名降级。
 - Material Design 3 风格 UI，支持明暗主题切换和移动端访问。
@@ -184,7 +185,7 @@ cp data/config.local.json.example data/config.local.json
 
 ## 缓存机制
 
-项目使用请求级内存缓存和文件缓存：
+项目使用文件缓存减少 GitHub API 调用：
 
 | 缓存内容 | 默认 TTL |
 |----------|----------|
@@ -195,6 +196,8 @@ cp data/config.local.json.example data/config.local.json
 | 资源最近更新时间 | 1 小时 |
 
 缓存文件存储在 `data/cache/`。需要强制刷新时，清空该目录中的缓存文件即可。
+
+首页多个资源指向同一 GitHub 仓库时自动合并查询，避免重复请求。
 
 ## 安全设计
 
@@ -228,8 +231,7 @@ github-accel-downloader/
 ├── assets/
 │   ├── bootstrap.min.css         # Bootstrap 5.3 样式
 │   ├── bootstrap.bundle.min.js   # Bootstrap JS
-│   ├── material-theme.css        # Material Design 3 主题样式
-│   ├── shared.css                # 共享样式
+│   ├── material-theme.css        # Material Design 3 主题样式（含玻璃态效果）
 │   ├── theme-switcher.js         # 明暗主题切换
 │   ├── favicon.ico               # 网站图标
 │   └── github-icon.png           # GitHub 图标
@@ -303,6 +305,15 @@ curl -s -o /dev/null -w "%{http_code}" --max-time 15 "http://localhost:8000/?res
 - 本项目仅聚合公开 GitHub Release 下载入口，应用版权归原作者所有。
 
 ## 更新日志
+
+### v1.8.2 - 代码精简与性能优化
+
+- 移除请求级内存缓存层，简化缓存体系。
+- 提取公共 cURL 工厂函数，消除 3 处重复的 cURL 配置代码。
+- 首页批量查询按 `owner/repo` 自动去重，相同仓库只请求一次 GitHub API。
+- 添加 HTTP `Cache-Control` 响应头，减少浏览器重复请求。
+- 合并共享样式文件，消除多份重复 CSS 定义。
+- 消除 cURL Multi 请求中 Token 降级的双重 fallback 逻辑。
 
 ### v1.8.0 - 性能与安全增强
 

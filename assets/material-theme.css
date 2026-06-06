@@ -273,27 +273,6 @@ body {
     white-space: nowrap;
 }
 
-/* 徽章样式 */
-.badge {
-    padding: 4px 10px;
-    border-radius: 90px;
-    font-weight: 500;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    display: inline-block;
-}
-
-.badge.bg-success {
-    background-color: rgba(76, 175, 80, 0.35) !important;
-    color: #fff !important;
-}
-
-.badge.bg-warning {
-    background-color: rgba(255, 193, 7, 0.35) !important;
-    color: #000 !important;
-}
-
 .resource-card.recommended::before {
     content: '站长推荐';
     position: absolute;
@@ -719,4 +698,14 @@ a:hover {
 /* 深色模式切换过渡 */
 body, .card, .resource-card, .release-card, .asset-item, .btn, .theme-toggle {
     transition: background-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Glass 效果 - from previous shared.css */
+.glass {
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 20px;
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
 }

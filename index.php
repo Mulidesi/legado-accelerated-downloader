@@ -1,7 +1,7 @@
 <?php
 /**
  * Legado 资源加速下载站点
- * v1.7.3 - 安全增强版
+ * v1.8.2 - 代码精简与性能优化
  * 
  * 安全改进:
  * - GitHub Token 从环境变量或本地配置读取
@@ -16,6 +16,7 @@ header('X-Content-Type-Options: nosniff');
 header('X-Frame-Options: DENY');
 header('Referrer-Policy: strict-origin-when-cross-origin');
 header('Permissions-Policy: geolocation=(), microphone=(), camera=()');
+header('Cache-Control: public, max-age=300');
 header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; form-action 'self'; base-uri 'self'; upgrade-insecure-requests");
 
 define('DATA_DIR', __DIR__ . '/data');
