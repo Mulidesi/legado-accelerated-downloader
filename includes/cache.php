@@ -3,6 +3,11 @@
  * 文件缓存系统 - 兼容性修复版
  */
 
+if (!defined('DATA_DIR')) {
+    http_response_code(403);
+    exit('Direct access not allowed');
+}
+
 // 确保缓存目录存在
 if (!is_dir(CACHE_DIR)) {
     @mkdir(CACHE_DIR, 0755, true);

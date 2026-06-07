@@ -1,10 +1,11 @@
 # Apache 安全配置文件
 # 禁止直接访问敏感目录和文件
 
-# 禁止访问 data 目录
+# 禁止访问 data 和 includes 目录
 <IfModule mod_rewrite.c>
     RewriteEngine On
     RewriteRule ^data/ - [F,L]
+    RewriteRule ^includes/ - [F,L]
 </IfModule>
 
 <IfModule mod_authz_core.c>

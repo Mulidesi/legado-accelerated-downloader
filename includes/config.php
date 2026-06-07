@@ -4,6 +4,11 @@
  * 从环境变量读取 GitHub Token，避免硬编码
  */
 
+if (!defined('DATA_DIR')) {
+    http_response_code(403);
+    exit('Direct access not allowed');
+}
+
 // 获取 GitHub Token 的优先级：
 // 1. 环境变量 GITHUB_TOKEN
 // 2. 配置文件 data/config.local.json

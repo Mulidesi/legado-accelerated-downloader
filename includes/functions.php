@@ -3,6 +3,11 @@
  * 公共函数库 - 兼容性修复版
  */
 
+if (!defined('DATA_DIR')) {
+    http_response_code(403);
+    exit('Direct access not allowed');
+}
+
 if (!defined('API_CACHE_TTL')) {
     define('API_CACHE_TTL', 900);
 }

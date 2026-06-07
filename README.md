@@ -207,6 +207,8 @@ cp data/config.local.json.example data/config.local.json
 
 - `index.php` 输出安全响应头：`X-Content-Type-Options`、`X-Frame-Options`、`Referrer-Policy`、`Permissions-Policy`、`Content-Security-Policy`。
 - CSP 限制默认资源来源为 `self`，并启用 `frame-ancestors 'none'`、`form-action 'self'`、`base-uri 'self'`。
+- Apache `.htaccess` 禁止直接访问 `includes/` 和 `data/` 目录。
+- 所有 include 文件顶部添加 `DATA_DIR` 守卫检查，直接访问返回 403。
 - cURL 启用 `CURLOPT_SSL_VERIFYPEER` 和 `CURLOPT_SSL_VERIFYHOST`，保持 HTTPS 证书校验。
 - `proxyUrls` 仅接受 HTTPS 和 allowlist 域名。
 - `marquee.items[].url` 仅接受 HTTPS URL。
@@ -314,6 +316,7 @@ curl -s -o /dev/null -w "%{http_code}" --max-time 15 "http://localhost:8000/?res
 ### v1.8.3 - UI 全面检修与无障碍优化
 
 - 全部内联样式迁移至语义化 CSS 类，移除 17+ 处分散的 `style=""` 属性。
+- `includes/` 目录添加 Apache 访问控制和 PHP 守卫检查，直接访问返回 403。
 - 删除重复 CSS 声明（`.resource-card.recommended::before` 冲突块）。
 - 修复硬编码颜色，改用主题 CSS 变量，添加深色模式全覆盖配色。
 - 移除 `!important` 声明。
