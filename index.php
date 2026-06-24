@@ -12,6 +12,8 @@
 error_reporting(E_ALL);
 ini_set('display_errors', '0');
 
+date_default_timezone_set('Asia/Shanghai');
+
 header('X-Content-Type-Options: nosniff');
 header('X-Frame-Options: DENY');
 header('Referrer-Policy: strict-origin-when-cross-origin');
@@ -74,7 +76,8 @@ if (isset($_GET['owner']) && isset($_GET['repo'])) {
     }
     
     $proxyUrls = isset($config['proxyUrls']) ? $config['proxyUrls'] : array('https://ghproxy.net/');
-    $repoDetail = getGitHubRepoDetailWithCache($owner, $repo, isset($resource['usePrerelease']) ? $resource['usePrerelease'] : false);
+    $sourceType = isset($resource['sourceType']) ? $resource['sourceType'] : 'release';
+    $repoDetail = getGitHubRepoDetailWithCache($owner, $repo, isset($resource['usePrerelease']) ? $resource['usePrerelease'] : false, $sourceType);
     $repoInfo = $repoDetail['repoInfo'];
     $releases = $repoDetail['releases'];
     

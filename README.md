@@ -2,7 +2,7 @@
 
 基于 PHP 的 GitHub Release 聚合下载站点，用于集中展示 Legado 相关资源，并通过配置的 HTTPS 加速代理生成下载入口。项目采用单入口 PHP 架构，适合部署在支持 PHP 和 cURL 的虚拟主机、Apache、Nginx 或轻量 PHP 运行环境中。
 
-[![Version](https://img.shields.io/badge/version-1.8.3-blue.svg)](https://github.com)
+[![Version](https://img.shields.io/badge/version-1.9.0-blue.svg)](https://github.com)
 [![PHP](https://img.shields.io/badge/PHP-7.4+-blue.svg)](https://php.net)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
@@ -10,13 +10,15 @@
 
 - 使用 `data/resources.json` 管理资源列表、代理地址和首页跑马灯。
 - 调用 GitHub API 获取 release、仓库 Stars、Forks 和更新时间。
+- 支持 Tag 数据源，可通过 `sourceType: "tag"` 配置使用 GitHub Tags API。
 - 支持预发布版本筛选，可按资源单独配置 `usePrerelease`。
 - 支持 Android、iOS、Windows、HarmonyOS、macOS、Linux 平台展示和筛选。
 - 资源可配置 `platforms` 字段，首页优先使用配置值，减少 GitHub API 请求。
 - 支持推荐资源置顶展示。
 - 支持多组 HTTPS 下载代理，并限制代理域名 allowlist。
-- 首页展示每个资源的最近更新时间。
-- 详情页展示最近 release、资源文件、平台标签和加速下载按钮。
+- 首页展示每个资源的最近更新时间，与详情页保持一致。
+- 详情页展示最近 release/tag、资源文件、平台标签和加速下载按钮。
+- Tag 模式支持源码下载（zipball/tarball）。
 - 文件缓存降低 GitHub API 调用量，减少重复请求。
 - 相同 GitHub 仓库的批量查询自动去重，避免冗余 API 调用。
 - GitHub 仓库详情和 release 信息并发请求，提升详情页加载速度。
@@ -84,6 +86,14 @@ php -S localhost:8000
             "platforms": ["Android"],
             "usePrerelease": true,
             "recommended": true
+        },
+        {
+            "name": "示例 Tag 项目",
+            "owner": "github-owner",
+            "repo": "repo-name",
+            "description": "编译资源在 Tag 中的项目示例。",
+            "sourceType": "tag",
+            "usePrerelease": true
         }
     ]
 }
@@ -117,6 +127,7 @@ php -S localhost:8000
 | `platforms` | array | 否 | 平台标签，例如 `Android`、`Windows`、`macOS`、`Linux`。首页筛选优先使用该字段。 |
 | `usePrerelease` | boolean | 是 | 是否包含 prerelease 版本。 |
 | `recommended` | boolean | 否 | 是否推荐，推荐资源会置顶展示。 |
+| `sourceType` | string | 否 | 数据源类型：`release`（默认）使用 Release API；`tag` 使用 Tag API（适用于编译资源在 Tag 中的项目）。 |
 
 ### 代理地址限制
 
@@ -312,6 +323,16 @@ curl -s -o /dev/null -w "%{http_code}" --max-time 15 "http://localhost:8000/?res
 - 本项目仅聚合公开 GitHub Release 下载入口，应用版权归原作者所有。
 
 ## 更新日志
+
+### v1.9.0 - Tag 数据源支持与时间显示修复
+
+- 新增 Tag 数据源支持，可通过 `sourceType: "tag"` 配置使用 GitHub Tags API。
+- Tag 模式支持源码下载（zipball/tarball），详情页标题显示"最近 Tag"。
+- 修复版本列表排序问题，严格按发布时间降序排列。
+- 修复发布时间显示问题，使用 DateTime 类正确解析 ISO 8601 格式并转换为北京时间。
+- 修复首页与详情页更新时间不一致问题，统一使用 `usePrerelease` 配置过滤。
+- 修复详情页时钟 SVG 图标显示异常。
+- 设置默认时区为 Asia/Shanghai。
 
 ### v1.8.3 - UI 全面检修与无障碍优化
 

@@ -246,15 +246,22 @@ function getResourcePlatformsBatch($resources) {
         }
         
         if (!isset($repoKeys[$key])) {
-            $repoKeys[$key] = array();
+            $repoKeys[$key] = array(
+                'indices' => array(),
+                'sourceType' => isset($resource['sourceType']) ? $resource['sourceType'] : 'release',
+            );
         }
-        $repoKeys[$key][] = $index;
+        $repoKeys[$key]['indices'][] = $index;
         $resourceMap[$index] = null;
     }
     
     // 按唯一 repo 构建请求列表
-    foreach ($repoKeys as $key => $indices) {
-        $urls[$key] = "https://api.github.com/repos/{$key}/releases?per_page=3";
+    foreach ($repoKeys as $key => $info) {
+        if ($info['sourceType'] === 'tag') {
+            $urls[$key] = "https://api.github.com/repos/{$key}/tags?per_page=3";
+        } else {
+            $urls[$key] = "https://api.github.com/repos/{$key}/releases?per_page=3";
+        }
     }
     
     // 并发请求
@@ -262,12 +269,17 @@ function getResourcePlatformsBatch($resources) {
         $responses = github_api_multi_request($urls, 15, PLATFORMS_CACHE_TTL);
         
         foreach ($responses as $key => $data) {
-            $indices = $repoKeys[$key];
+            $info = $repoKeys[$key];
+            $indices = $info['indices'];
             $platforms = array();
             
             if (is_array($data)) {
-                foreach ($data as $release) {
-                    $assets = isset($release['assets']) ? $release['assets'] : array();
+                foreach ($data as $item) {
+                    if ($info['sourceType'] === 'tag') {
+                        // Tag 没有 assets，只能从 repo 名检测平台
+                        break;
+                    }
+                    $assets = isset($item['assets']) ? $item['assets'] : array();
                     foreach ($assets as $asset) {
                         $name = isset($asset['name']) ? $asset['name'] : '';
                         $platforms = array_merge($platforms, detectPlatforms($name));
@@ -330,7 +342,9 @@ function getResourceUpdatedAtBatch($resources) {
         }
 
         $key = $resource['owner'] . '/' . $resource['repo'];
-        $cacheKey = "updated_at:{$key}";
+        $includePrerelease = isset($resource['usePrerelease']) ? $resource['usePrerelease'] : false;
+        $sourceType = isset($resource['sourceType']) ? $resource['sourceType'] : 'release';
+        $cacheKey = "updated_at:{$key}:" . ($includePrerelease ? '1' : '0') . ":{$sourceType}";
         $cached = file_cache_get($cacheKey);
         if ($cached !== null) {
             $resourceMap[$index] = $cached;
@@ -338,33 +352,59 @@ function getResourceUpdatedAtBatch($resources) {
         }
 
         if (!isset($repoKeys[$key])) {
-            $repoKeys[$key] = array();
+            $repoKeys[$key] = array(
+                'indices' => array(),
+                'includePrerelease' => $includePrerelease,
+                'sourceType' => $sourceType,
+            );
         }
-        $repoKeys[$key][] = $index;
+        $repoKeys[$key]['indices'][] = $index;
         $resourceMap[$index] = null;
     }
 
     // 按唯一 repo 构建请求列表
-    foreach ($repoKeys as $key => $indices) {
-        $urls[$key] = "https://api.github.com/repos/{$key}/releases?per_page=1";
+    foreach ($repoKeys as $key => $info) {
+        if ($info['sourceType'] === 'tag') {
+            $urls[$key] = "https://api.github.com/repos/{$key}/tags?per_page=3";
+        } else {
+            $urls[$key] = "https://api.github.com/repos/{$key}/releases?per_page=3";
+        }
     }
 
     if (!empty($urls)) {
         $responses = github_api_multi_request($urls, 15, RESOURCE_UPDATE_CACHE_TTL);
 
         foreach ($responses as $key => $data) {
-            $indices = $repoKeys[$key];
+            $info = $repoKeys[$key];
+            $indices = $info['indices'];
+            $includePrerelease = $info['includePrerelease'];
+            $sourceType = $info['sourceType'];
             $updatedAt = null;
-            if (is_array($data) && isset($data[0]) && is_array($data[0])) {
-                $updatedAt = isset($data[0]['published_at']) ? $data[0]['published_at'] : null;
+
+            if (is_array($data)) {
+                if ($sourceType === 'tag') {
+                    // Tag: 取第一个 tag 的 commit date
+                    if (isset($data[0]['commit']['committer']['date'])) {
+                        $updatedAt = $data[0]['commit']['committer']['date'];
+                    }
+                } else {
+                    foreach ($data as $r) {
+                        if (!$includePrerelease && !empty($r['prerelease'])) {
+                            continue;
+                        }
+                        $updatedAt = isset($r['published_at']) ? $r['published_at'] : null;
+                        break;
+                    }
+                }
             }
 
             foreach ($indices as $idx) {
                 $resourceMap[$idx] = $updatedAt;
             }
 
+            $cacheKey = "updated_at:{$key}:" . ($includePrerelease ? '1' : '0') . ":{$sourceType}";
             if ($updatedAt !== null) {
-                file_cache_set("updated_at:{$key}", $updatedAt, RESOURCE_UPDATE_CACHE_TTL);
+                file_cache_set($cacheKey, $updatedAt, RESOURCE_UPDATE_CACHE_TTL);
             }
         }
     }

@@ -37,8 +37,8 @@
         },
         {
             "name": "阅读 Max",
-            "owner": "GEd520",
-            "repo": "legados",
+            "owner": "Suml-1",
+            "repo": "Legado_Max",
             "description": "阅读 Max 继承自阅读 Sigma，在其基础上新增更多功能。 1.appLegacy 版：包名 io.legado.app 与 lyc 原版相同，可覆盖更新 2.appMax 版：包名 io.legado.app.yuedu 共存包名，不会覆盖原版 3.appS 版：包名 io.legado.app.yuedu.a 另一个共存包名。",
             "platforms": ["Android"],
             "usePrerelease": true,

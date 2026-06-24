@@ -179,6 +179,10 @@ function normalizeGitHubReleases($data, $includePrerelease = false) {
         $data = $filtered;
     }
 
+    usort($data, function($a, $b) {
+        return strtotime($b['published_at']) - strtotime($a['published_at']);
+    });
+
     return array_slice(array_map(function($r) {
         return array(
             'id' => $r['id'],
@@ -194,6 +198,36 @@ function normalizeGitHubReleases($data, $includePrerelease = false) {
                     'browser_download_url' => $a['browser_download_url'],
                 );
             }, isset($r['assets']) ? $r['assets'] : array()),
+        );
+    }, $data), 0, 3);
+}
+
+/**
+ * 精简 tag 数据（tag 没有 release 的完整信息）
+ */
+function normalizeGitHubTags($data) {
+    if (!is_array($data)) {
+        return array();
+    }
+
+    usort($data, function($a, $b) {
+        $aDate = isset($a['commit']['committer']['date']) ? $a['commit']['committer']['date'] : '';
+        $bDate = isset($b['commit']['committer']['date']) ? $b['commit']['committer']['date'] : '';
+        return strtotime($bDate) - strtotime($aDate);
+    });
+
+    return array_slice(array_map(function($t) {
+        $commitDate = isset($t['commit']['committer']['date']) ? $t['commit']['committer']['date'] : '';
+        return array(
+            'id' => isset($t['commit']['sha']) ? $t['commit']['sha'] : $t['name'],
+            'tag_name' => $t['name'],
+            'name' => $t['name'],
+            'prerelease' => false,
+            'published_at' => $commitDate,
+            'body' => '',
+            'assets' => array(),
+            'zipball_url' => isset($t['zipball_url']) ? $t['zipball_url'] : '',
+            'tarball_url' => isset($t['tarball_url']) ? $t['tarball_url'] : '',
         );
     }, $data), 0, 3);
 }
@@ -217,6 +251,30 @@ function getGitHubReleasesWithCache($owner, $repo, $includePrerelease = false) {
     }
 
     $result = normalizeGitHubReleases($data, $includePrerelease);
+
+    file_cache_set($cacheKey, $result, RELEASES_CACHE_TTL);
+    return $result;
+}
+
+/**
+ * 带缓存的 GitHub Tags API 调用
+ */
+function getGitHubTagsWithCache($owner, $repo) {
+    $cacheKey = "tags:{$owner}/{$repo}";
+
+    $cached = file_cache_get($cacheKey);
+    if ($cached !== null) {
+        return $cached;
+    }
+
+    $data = _github_api_request("https://api.github.com/repos/{$owner}/{$repo}/tags?per_page=5");
+
+    if ($data === null) {
+        $result = array('error' => 'api', 'message' => '获取 tag 失败');
+        return $result;
+    }
+
+    $result = normalizeGitHubTags($data);
 
     file_cache_set($cacheKey, $result, RELEASES_CACHE_TTL);
     return $result;
@@ -251,9 +309,9 @@ function getGitHubRepoInfo($owner, $repo) {
 /**
  * 并发获取仓库详情页数据
  */
-function getGitHubRepoDetailWithCache($owner, $repo, $includePrerelease = false) {
+function getGitHubRepoDetailWithCache($owner, $repo, $includePrerelease = false, $sourceType = 'release') {
     $repoCacheKey = "repo:{$owner}/{$repo}";
-    $releasesCacheKey = "releases:{$owner}/{$repo}:" . ($includePrerelease ? '1' : '0');
+    $releasesCacheKey = ($sourceType === 'tag' ? "tags:" : "releases:") . "{$owner}/{$repo}:" . ($includePrerelease ? '1' : '0');
 
     $repoInfo = file_cache_get($repoCacheKey);
 
@@ -264,7 +322,11 @@ function getGitHubRepoDetailWithCache($owner, $repo, $includePrerelease = false)
         $urls['repo'] = "https://api.github.com/repos/{$owner}/{$repo}";
     }
     if ($releases === null) {
-        $urls['releases'] = "https://api.github.com/repos/{$owner}/{$repo}/releases?per_page=5";
+        if ($sourceType === 'tag') {
+            $urls['tags'] = "https://api.github.com/repos/{$owner}/{$repo}/tags?per_page=5";
+        } else {
+            $urls['releases'] = "https://api.github.com/repos/{$owner}/{$repo}/releases?per_page=5";
+        }
     }
 
     if (!empty($urls)) {
@@ -282,19 +344,29 @@ function getGitHubRepoDetailWithCache($owner, $repo, $includePrerelease = false)
         }
 
         if ($releases === null) {
-            $data = isset($responses['releases']) ? $responses['releases'] : null;
-            if (is_array($data)) {
-                $releases = normalizeGitHubReleases($data, $includePrerelease);
-                file_cache_set($releasesCacheKey, $releases, RELEASES_CACHE_TTL);
+            if ($sourceType === 'tag') {
+                $data = isset($responses['tags']) ? $responses['tags'] : null;
+                if (is_array($data)) {
+                    $releases = normalizeGitHubTags($data);
+                    file_cache_set($releasesCacheKey, $releases, RELEASES_CACHE_TTL);
+                } else {
+                    $releases = array('error' => 'api', 'message' => '获取 tag 失败');
+                }
             } else {
-                $releases = array('error' => 'api', 'message' => '获取 release 失败');
+                $data = isset($responses['releases']) ? $responses['releases'] : null;
+                if (is_array($data)) {
+                    $releases = normalizeGitHubReleases($data, $includePrerelease);
+                    file_cache_set($releasesCacheKey, $releases, RELEASES_CACHE_TTL);
+                } else {
+                    $releases = array('error' => 'api', 'message' => '获取 release 失败');
+                }
             }
         }
     }
 
     return array(
         'repoInfo' => $repoInfo,
-        'releases' => $releases === null ? array('error' => 'api', 'message' => '获取 release 失败') : $releases,
+        'releases' => $releases === null ? array('error' => 'api', 'message' => '获取版本失败') : $releases,
     );
 }
 
@@ -352,8 +424,14 @@ function h($string) {
  * 格式化日期
  */
 function formatDate($dateString) {
-    $ts = strtotime($dateString);
-    return $ts ? date('Y-m-d H:i', $ts) : $dateString;
+    try {
+        $dt = new DateTime($dateString);
+        $dt->setTimezone(new DateTimeZone('Asia/Shanghai'));
+        return $dt->format('Y-m-d H:i');
+    } catch (Exception $e) {
+        $ts = strtotime($dateString);
+        return $ts ? date('Y-m-d H:i', $ts) : $dateString;
+    }
 }
 
 /**

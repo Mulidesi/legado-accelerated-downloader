@@ -63,7 +63,7 @@
             </a>
         </div>
         
-        <h4 class="mb-4">最近版本</h4>
+        <h4 class="mb-4"><?= $sourceType === 'tag' ? '最近 Tag' : '最近版本' ?></h4>
         
         <?php if (isset($releases['error'])): ?>
             <div class="alert alert-<?= $releases['error'] === 'ratelimit' ? 'warning' : 'danger' ?>">
@@ -91,8 +91,8 @@
                                 </div>
                                 <small class="release-date">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                                        <path d="M8 3.5a.5.5 0 0 0-1 0V9a.5.5 0 0 0 .252.434l3.5 2a.5.5 0 0 0 .496-.868L8 8.71V3.5z"/>
-                                        <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 16zm7-8A7 7 0 1 1 1 8a7 7 0 0 1 14 0z"/>
+                                        <path d="M8 3.5a.5.5 0 0 0-1 0V8a.5.5 0 0 0 .252.434l3.5 2a.5.5 0 0 0 .496-.868L8 7.71V3.5z"/>
+                                        <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm7-8A7 7 0 1 1 1 8a7 7 0 0 1 14 0z"/>
                                     </svg>
                                     <?= formatDate($release['published_at']) ?>
                                 </small>
@@ -129,6 +129,36 @@
                                             </div>
                                         </div>
                                     <?php endforeach; ?>
+                                </div>
+                            <?php elseif (!empty($release['zipball_url']) || !empty($release['tarball_url'])): ?>
+                                <div class="mt-4">
+                                    <h6 class="mb-3">源码下载</h6>
+                                    <?php if (!empty($release['zipball_url'])): ?>
+                                        <div class="asset-item" onclick="window.open('<?= h(buildAcceleratedUrlOptimized($proxyUrls, $release['zipball_url'])) ?>', '_blank')">
+                                            <div class="asset-item-content">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16" class="download-icon">
+                                                    <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+                                                    <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
+                                                </svg>
+                                                <div class="asset-item-filename">
+                                                    <strong>Source code (zip)</strong>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    <?php endif; ?>
+                                    <?php if (!empty($release['tarball_url'])): ?>
+                                        <div class="asset-item" onclick="window.open('<?= h(buildAcceleratedUrlOptimized($proxyUrls, $release['tarball_url'])) ?>', '_blank')">
+                                            <div class="asset-item-content">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16" class="download-icon">
+                                                    <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+                                                    <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
+                                                </svg>
+                                                <div class="asset-item-filename">
+                                                    <strong>Source code (tar.gz)</strong>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    <?php endif; ?>
                                 </div>
                             <?php else: ?>
                                 <div class="alert alert-secondary mt-3 mb-0">
