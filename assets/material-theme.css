@@ -26,10 +26,18 @@
 
     --success: #14713A;
     --success-soft: rgba(20, 113, 58, 0.10);
+    --success-soft-strong: rgba(20, 113, 58, 0.28);
     --warning: #8A5200;
     --warning-soft: rgba(138, 82, 0, 0.12);
     --danger: #B42318;
     --danger-soft: rgba(180, 35, 24, 0.10);
+
+    /* 发布状态语义色：推荐=绿、预发布=橙、正式版=蓝 */
+    --info: #1F6FBF;
+    --info-soft: rgba(31, 111, 191, 0.10);
+
+    /* 触摸目标最小尺寸，移动端可点击热区基准 */
+    --tap: 44px;
 
     --shadow-sm: 0 1px 2px rgba(18, 18, 25, 0.05);
     --shadow-md: 0 4px 14px rgba(18, 18, 25, 0.07);
@@ -69,10 +77,14 @@
 
     --success: #5CD68A;
     --success-soft: rgba(92, 214, 138, 0.14);
+    --success-soft-strong: rgba(92, 214, 138, 0.34);
     --warning: #E8B04B;
     --warning-soft: rgba(232, 176, 75, 0.15);
     --danger: #FF9086;
     --danger-soft: rgba(255, 144, 134, 0.14);
+
+    --info: #6FB4F7;
+    --info-soft: rgba(111, 180, 247, 0.15);
 
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
     --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.45);
@@ -253,10 +265,10 @@ input {
     color: var(--text);
 }
 
+/* logo 为横宽比例，固定高度让宽度自适应，避免强塞正方形导致压缩或裁切 */
 .nav-brand img {
-    width: 26px;
     height: 26px;
-    border-radius: 6px;
+    width: auto;
     flex-shrink: 0;
 }
 
@@ -520,21 +532,33 @@ input {
     transform: translateY(-2px);
 }
 
-.card:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
+/* 卡片整体可点击：标题链接伸展覆盖整张卡片 */
+.card-link {
+    color: inherit;
+    text-decoration: none;
+    outline: none;
+}
+
+.card-link::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    border-radius: inherit;
 }
 
 .card-top {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
+    justify-content: space-between;
     gap: 10px;
     margin-bottom: 10px;
 }
 
 .card-title {
-    font-size: 16px;
+    font-size: 17px;
     font-weight: 600;
+    line-height: 1.45;
     letter-spacing: -0.01em;
     color: var(--text);
     overflow: hidden;
@@ -542,6 +566,14 @@ input {
     white-space: nowrap;
     min-width: 0;
     flex: 1;
+}
+
+/* 角标组：固定在卡片右上角，不随内容换行下沉 */
+.card-badges {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
 }
 
 .card-desc {
@@ -581,13 +613,18 @@ input {
 .card-repo {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
+    gap: 6px;
     min-width: 0;
+    max-width: 100%;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+}
+
+.card-repo-text {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-family: var(--font-mono);
-    font-size: 11.5px;
 }
 
 .card-repo img {
@@ -600,14 +637,46 @@ input {
     font-variant-numeric: tabular-nums;
 }
 
-/* 推荐标记：以细边与角标替代旋转丝带 */
+/* 推荐卡片：绿色系与推荐角标保持一致，避免一张卡出现两个焦点色 */
 .card.recommended {
-    border-color: var(--accent-soft-strong);
-    box-shadow: var(--shadow-sm), inset 0 0 0 1px var(--accent-soft);
+    border-color: var(--success-soft-strong);
+    background-image: linear-gradient(to bottom, var(--success-soft) 0, transparent 88px);
+}
+
+/* 顶部色条：整卡最强的识别信号，同时不占额外高度 */
+/*
+ * 顶部色条与卡片外沿严格等宽：
+ * 1. 负 1px 偏移抵消边框（绝对定位以 padding box 为基准，需外扩覆盖 border）
+ * 2. 高度取满卡片圆角半径，再用 border-radius 继承卡片弧线，
+ *    避免 3px 矮元素触发圆角等比压缩导致两端弧线对不上
+ * 3. clip-path 只保留顶部 3px，形状由圆角决定而非硬切
+ */
+.card.recommended::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: -1px;
+    right: -1px;
+    height: calc(var(--radius-lg) + 1px);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    background-color: var(--success);
+    clip-path: inset(0 0 calc(100% - 4px) 0);
 }
 
 .card.recommended:hover {
+    border-color: var(--success);
+    box-shadow: var(--shadow-md), 0 0 0 3px var(--success-soft);
+}
+
+.card.recommended .card-title {
+    font-weight: 700;
+}
+
+/* 焦点态置于推荐样式之后，确保键盘焦点环在推荐卡片上同样可见 */
+.card:focus-within,
+.card.recommended:focus-within {
     border-color: var(--accent);
+    box-shadow: var(--shadow-md), 0 0 0 3px var(--accent-soft-strong);
 }
 
 /* ===================== 徽章 ===================== */
@@ -649,6 +718,52 @@ input {
     font-size: 11.5px;
 }
 
+/* ===================== 状态角标 ===================== */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    height: 21px;
+    padding: 0 8px;
+    border-radius: var(--radius-pill);
+    border: 1px solid transparent;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+}
+
+/* 推荐角标：实心底色，在一排角标中优先被看到 */
+.badge-recommended {
+    gap: 5px;
+    background-color: var(--success);
+    border-color: var(--success);
+    color: #FFFFFF;
+}
+
+.badge-recommended::before {
+    content: '';
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background-color: currentColor;
+}
+
+[data-theme="dark"] .badge-recommended {
+    color: #0D2A18;
+}
+
+.badge-prerelease {
+    background-color: var(--warning-soft);
+    border-color: var(--warning-soft);
+    color: var(--warning);
+}
+
+.badge-stable {
+    background-color: var(--info-soft);
+    border-color: var(--info-soft);
+    color: var(--info);
+}
+
 /* ===================== 按钮 ===================== */
 .btn {
     display: inline-flex;
@@ -665,14 +780,41 @@ input {
     transition: all 0.18s var(--ease);
 }
 
+/* 大号按钮：主要行动点，热区对齐触摸目标基准 */
+.btn-lg {
+    min-height: var(--tap);
+    height: auto;
+    padding: 0 22px;
+    border-radius: var(--radius-pill);
+    font-size: 14.5px;
+    font-weight: 600;
+}
+
 .btn-primary {
     background-color: var(--accent);
     color: var(--accent-contrast);
+    box-shadow: var(--shadow-sm);
 }
 
 .btn-primary:hover {
     background-color: var(--accent-hover);
     color: var(--accent-contrast);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+}
+
+.btn-primary:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+/* GitHub 图标为深色 PNG，压在强调色上需反色才够清晰 */
+.btn-primary img {
+    filter: brightness(0) invert(1);
+}
+
+[data-theme="dark"] .btn-primary img {
+    filter: brightness(0);
 }
 
 .btn-ghost {
@@ -830,27 +972,52 @@ body.sheet-open {
     overflow-wrap: anywhere;
 }
 
+/* 统计与仓库入口同一行：统计靠左，主按钮靠右 */
+.detail-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 20px;
+}
+
 .detail-stats {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    margin-bottom: 16px;
 }
 
+/* 统计项：卡片化，数值为主、标签为辅 */
 .stat {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 5px 12px;
+    gap: 10px;
+    padding: 12px 16px;
     border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    background-color: var(--surface);
+    border-radius: var(--radius-md);
+    background-color: var(--surface-2);
     font-size: 13px;
     color: var(--text-secondary);
     font-variant-numeric: tabular-nums;
 }
 
 .stat svg {
+    flex-shrink: 0;
+    color: var(--accent);
+}
+
+.stat-value {
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--text);
+}
+
+.stat-label {
+    font-size: 12px;
     color: var(--text-muted);
 }
 
@@ -858,9 +1025,7 @@ body.sheet-open {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    padding-bottom: 20px;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 20px;
+    margin-left: auto;
 }
 
 .section-title {
@@ -882,6 +1047,12 @@ body.sheet-open {
     border-radius: var(--radius-lg);
     background-color: var(--surface);
     margin-bottom: 12px;
+}
+
+/* 最新版本：高亮边框，视觉上先被看到 */
+.release-latest {
+    border-color: var(--success);
+    box-shadow: 0 0 0 1px var(--success), var(--shadow-sm);
 }
 
 .release-head {
@@ -907,8 +1078,9 @@ body.sheet-open {
 }
 
 .release-name {
-    font-size: 14.5px;
-    font-weight: 600;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
     color: var(--text);
     overflow-wrap: anywhere;
 }
@@ -931,17 +1103,21 @@ body.sheet-open {
     margin-bottom: 14px;
 }
 
+/* 折叠头：热区拉满一行，高度对齐触摸目标基准 */
 .notes > summary {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 9px 13px;
-    font-size: 12.5px;
-    font-weight: 500;
+    min-height: var(--tap);
+    padding: 12px 15px;
+    font-size: 13px;
+    font-weight: 600;
     color: var(--text-secondary);
     cursor: pointer;
     list-style: none;
     border-radius: var(--radius-md);
+    transition: background-color 0.18s var(--ease), color 0.18s var(--ease);
 }
 
 .notes > summary::-webkit-details-marker {
@@ -949,27 +1125,62 @@ body.sheet-open {
 }
 
 .notes > summary:hover {
+    background-color: var(--surface-3);
     color: var(--text);
 }
 
-.notes > summary::after {
-    content: '';
-    width: 6px;
-    height: 6px;
-    margin-left: auto;
-    border-right: 1.5px solid currentColor;
-    border-bottom: 1.5px solid currentColor;
-    transform: rotate(45deg) translateY(-2px);
-    transition: transform 0.2s var(--ease);
+.notes > summary:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
 }
 
-.notes[open] > summary::after {
+.notes[open] > summary {
+    color: var(--text);
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+/* 箭头放进圆形底座，指向更明确 */
+.notes > summary::after {
+    content: '';
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    margin-left: auto;
+    border-radius: 50%;
+    background-color: var(--surface-3);
+    box-shadow: inset 0 0 0 1px var(--border);
+    transition: background-color 0.18s var(--ease), box-shadow 0.18s var(--ease);
+}
+
+/* 箭头本体：绝对定位到圆形底座中心 */
+.notes > summary::before {
+    content: '';
+    position: absolute;
+    right: 22px;
+    width: 6px;
+    height: 6px;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: rotate(45deg) translateY(-2px);
+    transition: transform 0.22s var(--ease);
+    pointer-events: none;
+    z-index: 1;
+}
+
+.notes[open] > summary::before {
     transform: rotate(-135deg) translateY(-2px);
 }
 
+.notes > summary:hover::after {
+    background-color: var(--accent-soft);
+    box-shadow: inset 0 0 0 1px var(--accent-soft-strong);
+}
+
 .notes-body {
-    padding: 0 13px 13px;
-    font-size: 12.5px;
+    padding: 12px 15px 15px;
+    border-top: 1px solid var(--border);
+    font-size: 13px;
     line-height: 1.75;
     color: var(--text-secondary);
     white-space: pre-wrap;
@@ -978,56 +1189,75 @@ body.sheet-open {
     overflow-y: auto;
 }
 
-/* 下载项 */
+/* 下载项：主色调按钮样式，大圆角 + 大热区 */
 .asset-list {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
 }
 
 .asset {
     display: flex;
     align-items: center;
-    gap: 11px;
-    padding: 10px 13px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    background-color: var(--surface-2);
-    color: var(--text);
-    transition: border-color 0.18s var(--ease), background-color 0.18s var(--ease);
+    gap: 12px;
+    min-height: var(--tap);
+    padding: 12px 16px;
+    border: 1px solid var(--accent-soft-strong);
+    border-radius: var(--radius-pill);
+    background-color: var(--accent-soft);
+    color: var(--accent);
+    transition: border-color 0.18s var(--ease), background-color 0.18s var(--ease), color 0.18s var(--ease), transform 0.18s var(--ease), box-shadow 0.18s var(--ease);
 }
 
 .asset:hover {
-    border-color: var(--accent);
-    background-color: var(--accent-soft);
-    color: var(--text);
+    border-color: transparent;
+    background-color: var(--accent);
+    color: var(--accent-contrast);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+}
+
+.asset:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
 }
 
 .asset-icon {
     flex-shrink: 0;
-    color: var(--text-muted);
-    transition: color 0.18s var(--ease);
-}
-
-.asset:hover .asset-icon {
-    color: var(--accent);
+    color: currentColor;
 }
 
 .asset-name {
     flex: 1;
     min-width: 0;
-    font-size: 13px;
-    font-weight: 500;
+    font-size: 13.5px;
+    font-weight: 600;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
+/* 文件大小：置于按钮右侧，随按钮状态反色 */
 .asset-size {
     flex-shrink: 0;
+    padding: 3px 10px;
+    border-radius: var(--radius-pill);
+    background-color: var(--surface);
     font-size: 11.5px;
-    color: var(--text-muted);
+    font-weight: 600;
+    color: var(--text-secondary);
     font-variant-numeric: tabular-nums;
+    transition: background-color 0.18s var(--ease), color 0.18s var(--ease);
+}
+
+.asset:hover .asset-size {
+    background-color: rgba(255, 255, 255, 0.22);
+    color: var(--accent-contrast);
+}
+
+/* 深色主题下强调色为亮紫，叠加层改为暗色才有足够对比 */
+[data-theme="dark"] .asset:hover .asset-size {
+    background-color: rgba(0, 0, 0, 0.18);
 }
 
 /* ===================== 提示框 ===================== */
@@ -1109,17 +1339,42 @@ body.sheet-open {
     overflow-wrap: anywhere;
 }
 
+/* 返回按钮：实体样式，热区达到触摸目标基准 */
 .back-link {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
+    min-height: 38px;
+    padding: 0 16px 0 13px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-pill);
+    background-color: var(--surface);
+    box-shadow: var(--shadow-sm);
     font-size: 13.5px;
+    font-weight: 500;
     color: var(--text-secondary);
     margin-bottom: 18px;
+    transition: border-color 0.18s var(--ease), background-color 0.18s var(--ease), color 0.18s var(--ease), transform 0.18s var(--ease);
+}
+
+.back-link svg {
+    transition: transform 0.18s var(--ease);
 }
 
 .back-link:hover {
+    border-color: var(--accent);
+    background-color: var(--accent-soft);
     color: var(--accent);
+}
+
+/* 箭头随 hover 左移，强化“返回”方向感 */
+.back-link:hover svg {
+    transform: translateX(-2px);
+}
+
+.back-link:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
 }
 
 /* ===================== 响应式 ===================== */
@@ -1189,9 +1444,63 @@ body.sheet-open {
         font-size: 17px;
     }
 
+    /* 窄屏换行后按钮占满整行，避免孤立右对齐 */
+    .detail-bar {
+        gap: 14px;
+    }
+
+    .detail-actions {
+        margin-left: 0;
+        width: 100%;
+    }
+
+    .detail-actions .btn {
+        flex: 1;
+        justify-content: center;
+    }
+
     .notice {
         margin-left: 0;
         margin-right: 0;
+    }
+}
+
+/* ===================== 触摸设备 ===================== */
+/* 触摸屏无真实 hover，改用按压反馈，避免 hover 态粘滞 */
+@media (hover: none) {
+    .card:hover {
+        transform: none;
+        border-color: var(--border);
+        box-shadow: var(--shadow-sm);
+    }
+
+    .card:active {
+        transform: scale(0.985);
+        border-color: var(--accent-soft-strong);
+        box-shadow: var(--shadow-md);
+    }
+
+    /* 触摸设备复位 hover 时，保留推荐卡片的绿色识别 */
+    .card.recommended:hover {
+        border-color: var(--success-soft-strong);
+        box-shadow: var(--shadow-sm);
+    }
+
+    .card.recommended:active {
+        border-color: var(--success);
+        box-shadow: var(--shadow-md), 0 0 0 3px var(--success-soft);
+    }
+
+    .asset:active {
+        transform: scale(0.985);
+    }
+
+    .btn:active {
+        transform: scale(0.97);
+    }
+
+    .filter-btn:active {
+        background-color: var(--accent-soft);
     }
 }
 
@@ -1212,6 +1521,12 @@ body.sheet-open {
     }
 
     .card:hover {
+        transform: none;
+    }
+
+    .card:active,
+    .asset:active,
+    .btn:active {
         transform: none;
     }
 

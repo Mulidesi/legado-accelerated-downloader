@@ -32,29 +32,33 @@ $description = trim($resource['description'] ?? '');
     <p class="detail-desc"><?= nl2br(h($description)) ?></p>
 <?php endif; ?>
 
-<?php if ($hasStats): ?>
+<div class="detail-bar">
+    <?php if ($hasStats): ?>
     <div class="detail-stats">
         <span class="stat">
-            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
                 <path d="M8 .25a.75.75 0 0 1 .673.418l1.882 3.815 4.21.612a.75.75 0 0 1 .416 1.279l-3.046 2.97.719 4.192a.75.75 0 0 1-1.088.791L8 12.347l-3.766 1.98a.75.75 0 0 1-1.088-.79l.72-4.194L.818 6.374a.75.75 0 0 1 .416-1.28l4.21-.611L7.327.668A.75.75 0 0 1 8 .25z"/>
             </svg>
-            <?= number_format($repoInfo['stargazers_count'] ?? 0) ?> Stars
+            <span class="stat-value"><?= number_format($repoInfo['stargazers_count'] ?? 0) ?></span>
+            <span class="stat-label">Stars</span>
         </span>
         <span class="stat">
-            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
                 <path d="M8 3a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"/>
                 <path d="m5.93 6.704-.847 10.816a.75.75 0 0 0 1.492.117L8 3.251l1.425 14.384a.75.75 0 0 0 1.492-.117L10.07 6.704A4.483 4.483 0 0 1 8 7a4.49 4.49 0 0 1-2.07-.296zM3.5 3.75a.5.5 0 0 1 .5-.5H8a.5.5 0 0 1 0 1H4a.5.5 0 0 1-.5-.5z"/>
             </svg>
-            <?= number_format($repoInfo['forks_count'] ?? 0) ?> Forks
+            <span class="stat-value"><?= number_format($repoInfo['forks_count'] ?? 0) ?></span>
+            <span class="stat-label">Forks</span>
         </span>
     </div>
-<?php endif; ?>
+    <?php endif; ?>
 
-<div class="detail-actions">
-    <a href="https://github.com/<?= h($resource['owner']) ?>/<?= h($resource['repo']) ?>" target="_blank" rel="noopener noreferrer" class="btn btn-ghost">
-        <img src="assets/github-icon.png" alt="" width="16" height="16" loading="lazy">
-        访问 GitHub 仓库
-    </a>
+    <div class="detail-actions">
+        <a href="https://github.com/<?= h($resource['owner']) ?>/<?= h($resource['repo']) ?>" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-lg">
+            <img src="assets/github-icon.png" alt="" width="18" height="18" loading="lazy">
+            访问 GitHub 仓库
+        </a>
+    </div>
 </div>
 
 <div class="section-title"><?= $sourceType === 'tag' ? '最近 Tag' : '最近版本' ?></div>
@@ -80,8 +84,9 @@ $description = trim($resource['description'] ?? '');
         $releaseTitle = $release['name'] ?: $release['tag_name'];
         $hasAssets = !empty($release['assets']);
         $hasSource = !empty($release['zipball_url']) || !empty($release['tarball_url']);
+        $isLatest = !empty($release['_isLatest']);
         ?>
-        <div class="release">
+        <div class="release<?= $isLatest ? ' release-latest' : '' ?>">
             <div class="release-head">
                 <div class="release-head-main">
                     <div class="release-tags">

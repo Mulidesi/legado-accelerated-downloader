@@ -250,7 +250,8 @@ github-accel-downloader/
 │   ├── material-theme.css        # 主题样式，含设计令牌与明暗两套色板
 │   ├── app.js                    # 详情侧栏、搜索筛选、URL 历史同步
 │   ├── theme-switcher.js         # 明暗主题切换
-│   ├── favicon.ico               # 网站图标
+│   ├── favicon.ico               # 浏览器标签页图标，含 16/32/48 三种尺寸
+│   ├── logo.png                  # 顶栏站点标识
 │   └── github-icon.png           # GitHub 图标
 ├── .htaccess                     # Apache 访问控制和安全头兜底
 ├── .gitignore                    # 本地配置、缓存和日志忽略规则

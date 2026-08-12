@@ -24,7 +24,7 @@
     <nav class="nav">
         <div class="container nav-inner">
             <a href="index.php" class="nav-brand">
-                <img src="assets/favicon.ico" alt="" width="26" height="26">
+                <img src="assets/logo.png" srcset="assets/logo.png 1x, assets/logo@2x.png 2x" alt="" width="36" height="26">
                 <span>Legado 资源加速下载</span>
             </a>
             <div class="nav-actions">
@@ -134,18 +134,24 @@
             <div class="grid" id="resource-grid">
                 <?php foreach ($resources as $resource): ?>
                     <?php $detailUrl = 'index.php?owner=' . urlencode($resource['owner']) . '&repo=' . urlencode($resource['repo']); ?>
-                    <a class="card <?= !empty($resource['recommended']) ? 'recommended' : '' ?>"
-                       href="<?= h($detailUrl) ?>"
+                    <article class="card <?= !empty($resource['recommended']) ? 'recommended' : '' ?>"
                        data-owner="<?= h($resource['owner']) ?>"
                        data-repo="<?= h($resource['repo']) ?>"
                        data-name="<?= h($resource['name']) ?>"
                        data-platforms='<?= h(json_encode($resource['platforms'] ?? array(), JSON_UNESCAPED_UNICODE)) ?>'
                        data-search="<?= h(mb_strtolower($resource['name'] . ' ' . $resource['owner'] . '/' . $resource['repo'])) ?>">
                         <div class="card-top">
-                            <span class="card-title" title="<?= h($resource['name']) ?>"><?= h($resource['name']) ?></span>
-                            <?php if (!empty($resource['recommended'])): ?>
-                                <span class="chip chip-accent">推荐</span>
-                            <?php endif; ?>
+                            <h2 class="card-title" title="<?= h($resource['name']) ?>">
+                                <a class="card-link" href="<?= h($detailUrl) ?>"><?= h($resource['name']) ?></a>
+                            </h2>
+                            <div class="card-badges">
+                                <?php if (!empty($resource['recommended'])): ?>
+                                    <span class="badge badge-recommended">推荐</span>
+                                <?php endif; ?>
+                                <span class="badge <?= !empty($resource['usePrerelease']) ? 'badge-prerelease' : 'badge-stable' ?>">
+                                    <?= !empty($resource['usePrerelease']) ? '预发布' : '正式版' ?>
+                                </span>
+                            </div>
                         </div>
 
                         <?php if (trim($resource['description'] ?? '') !== ''): ?>
@@ -153,9 +159,6 @@
                         <?php endif; ?>
 
                         <div class="card-chips">
-                            <span class="chip <?= !empty($resource['usePrerelease']) ? 'chip-warning' : 'chip-success' ?>">
-                                <?= !empty($resource['usePrerelease']) ? '预发布' : '正式版' ?>
-                            </span>
                             <?php if (!empty($resource['platforms'])): ?>
                                 <?php foreach ($resource['platforms'] as $platform): ?>
                                     <span class="chip"><?= h($platform) ?></span>
@@ -169,14 +172,14 @@
 
                         <div class="card-foot">
                             <span class="card-repo">
-                                <img src="assets/github-icon.png" alt="" width="13" height="13" loading="lazy">
-                                <?= h($resource['owner'] . '/' . $resource['repo']) ?>
+                                <img src="assets/github-icon.png" alt="" width="14" height="14" loading="lazy">
+                                <span class="card-repo-text"><?= h($resource['owner'] . '/' . $resource['repo']) ?></span>
                             </span>
                             <?php if (!empty($resource['updatedAt'])): ?>
                                 <span class="card-date"><?= h(formatDate($resource['updatedAt'])) ?></span>
                             <?php endif; ?>
                         </div>
-                    </a>
+                    </article>
                 <?php endforeach; ?>
             </div>
 

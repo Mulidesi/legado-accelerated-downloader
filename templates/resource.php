@@ -24,7 +24,7 @@
     <nav class="nav">
         <div class="container nav-inner">
             <a href="index.php" class="nav-brand">
-                <img src="assets/favicon.ico" alt="" width="26" height="26">
+                <img src="assets/logo.png" srcset="assets/logo.png 1x, assets/logo@2x.png 2x" alt="" width="36" height="26">
                 <span>Legado 资源加速下载</span>
             </a>
             <div class="nav-actions">
