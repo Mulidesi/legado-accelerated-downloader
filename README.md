@@ -2,7 +2,7 @@
 
 基于 PHP 的 GitHub Release 聚合下载站点，用于集中展示 Legado 相关资源，并通过配置的 HTTPS 加速代理生成下载入口。项目采用单入口 PHP 架构，适合部署在支持 PHP 和 cURL 的虚拟主机、Apache、Nginx 或轻量 PHP 运行环境中。
 
-[![Version](https://img.shields.io/badge/version-1.9.0-blue.svg)](https://github.com)
+[![Version](https://img.shields.io/badge/version-1.10.0-blue.svg)](https://github.com)
 [![PHP](https://img.shields.io/badge/PHP-7.4+-blue.svg)](https://php.net)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
@@ -324,6 +324,20 @@ curl -s -o /dev/null -w "%{http_code}" --max-time 15 "http://localhost:8000/?res
 - 本项目仅聚合公开 GitHub Release 下载入口，应用版权归原作者所有。
 
 ## 更新日志
+
+### v1.10.0 - 单页交互重构与视觉打磨
+
+- 重构为单页交互：首页卡片就地展开详情侧栏，异步加载详情片段，支持深链、浏览器前进后退、Esc 关闭与焦点锁定。
+- 详情内容抽取为共享片段 `templates/detail-fragment.php`，侧栏与独立详情页复用同一份标记。
+- 样式表整体重写，建立设计令牌体系与明暗两套色板，移除 Bootstrap 依赖（减少 316KB 静态资源）。
+- 推荐卡片改用绿色系统一强调：顶部色条、边框、实心角标，与预发布橙、正式版蓝形成层级区分。
+- 详情页统计与仓库入口合并为同一行，Stars/Forks 数值拆分为主次层级。
+- 下载按钮升级为主色调胶囊，热区提升至 44px，hover 时填充强调色。
+- 版本列表折叠箭头改为圆形底座配旋转动画，最新版本添加绿色边框高亮。
+- 站点图标替换，按 1.38:1 实际比例输出并提供 2x 高分屏资源。
+- 移动端补充触摸按压反馈，适配 `prefers-reduced-motion` 动效偏好。
+- 修复 `.github/workflows/release.yml` YAML 结构残缺导致的解析失败。
+- `data/config.local.json` 移出版本控制，避免本地凭据配置误提交。
 
 ### v1.9.0 - Tag 数据源支持与时间显示修复
 
