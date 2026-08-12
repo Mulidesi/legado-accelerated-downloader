@@ -243,16 +243,15 @@ github-accel-downloader/
 │   ├── .htaccess                 # Apache data 目录访问保护
 │   └── cache/                    # 运行时缓存目录
 ├── templates/
-│   ├── home.php                  # 首页模板、跑马灯、资源卡片、平台筛选
-│   └── resource.php              # 详情页模板、release 和下载列表
+│   ├── home.php                  # 首页模板、跑马灯、资源卡片、搜索和平台筛选
+│   ├── detail-fragment.php       # 详情内容片段，侧栏异步加载与独立页面共用
+│   └── resource.php              # 独立详情页，无 JS 时的回退入口
 ├── assets/
-│   ├── bootstrap.min.css         # Bootstrap 5.3 样式
-│   ├── bootstrap.bundle.min.js   # Bootstrap JS
-│   ├── material-theme.css        # Material Design 3 主题样式（含玻璃态、骨架屏效果）
+│   ├── material-theme.css        # 主题样式，含设计令牌与明暗两套色板
+│   ├── app.js                    # 详情侧栏、搜索筛选、URL 历史同步
 │   ├── theme-switcher.js         # 明暗主题切换
 │   ├── favicon.ico               # 网站图标
 │   └── github-icon.png           # GitHub 图标
-├── shared.css                    # 已废弃，合并至 material-theme.css
 ├── .htaccess                     # Apache 访问控制和安全头兜底
 ├── .gitignore                    # 本地配置、缓存和日志忽略规则
 ├── SECURITY_MIGRATION.md         # Token 安全迁移指南
@@ -269,6 +268,7 @@ php -l includes/functions.php
 php -l includes/cache.php
 php -l templates/home.php
 php -l templates/resource.php
+php -l templates/detail-fragment.php
 
 # 校验资源配置 JSON
 php -r 'json_decode(file_get_contents("data/resources.json")); exit(json_last_error() === JSON_ERROR_NONE ? 0 : 1);'

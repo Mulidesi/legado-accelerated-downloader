@@ -1,7 +1,58 @@
-- name: Archive Release
-        uses: thedoctor0/zip-release@0.7.6
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
         with:
-          type: 'zip'
-          filename: 'release.zip'
-          # 这里指定需要打包的文件和文件夹
-          path: 'assets data includes templates .htaccess README.md SECURITY_MIGRATION.md index.php'
+          php-version: '8.2'
+          extensions: curl, mbstring
+
+      - name: Lint PHP files
+        run: |
+          for f in index.php includes/*.php templates/*.php; do
+            php -l "$f"
+          done
+
+      - name: Validate resources.json
+        run: |
+          php -r 'json_decode(file_get_contents("data/resources.json")); exit(json_last_error() === JSON_ERROR_NONE ? 0 : 1);'
+
+      - name: Build deploy package
+        run: |
+          zip -r -q release.zip \
+            assets includes templates \
+            data/resources.json data/.htaccess data/config.local.json.example \
+            index.php .htaccess README.md SECURITY_MIGRATION.md
+
+      - name: Verify credentials are excluded
+        run: |
+          if unzip -Z1 release.zip | grep -qx "data/config.local.json"; then
+            echo "::error::Package contains the real credential file"
+            exit 1
+          fi
+          if unzip -Z1 release.zip | grep -q "^data/cache"; then
+            echo "::error::Package contains the runtime cache directory"
+            exit 1
+          fi
+          echo "Credential and cache exclusion verified"
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release.zip
+          generate_release_notes: true

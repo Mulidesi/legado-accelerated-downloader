@@ -87,6 +87,19 @@ if (isset($_GET['owner']) && isset($_GET['repo'])) {
         }
     }
     
+    // 平台信息用于详情头部展示
+    if (empty($resource['platforms'])) {
+        $detailPlatforms = getResourcePlatformsBatch(array($resource));
+        $resource['platforms'] = isset($detailPlatforms[0]) ? $detailPlatforms[0] : array();
+    }
+
+    // 片段模式：仅返回详情内容，供首页侧栏异步加载
+    if (isset($_GET['fragment']) && $_GET['fragment'] === '1') {
+        header('Content-Type: text/html; charset=UTF-8');
+        include TEMPLATES_DIR . '/detail-fragment.php';
+        exit;
+    }
+
     include TEMPLATES_DIR . '/resource.php';
     exit;
 }
