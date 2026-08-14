@@ -53,7 +53,7 @@ php -S localhost:8000
 
 ### 部署到服务器
 
-1. 上传 `legado-deploy-v1.8.3.zip` 到服务器并解压，或直接上传项目文件到 Web 根目录。
+1. 从 GitHub Release 下载 `release.zip`，上传到服务器的 Web 根目录并解压，或直接上传项目文件。
 2. 根据需要编辑 `data/resources.json`。
 3. 配置 GitHub Token。
 4. 确认 Web 服务器可写入 `data/cache/`。
@@ -368,6 +368,31 @@ curl -s -o /dev/null -w "%{http_code}" --max-time 15 "http://localhost:8000/?res
 - 本项目仅聚合公开 GitHub Release 下载入口，应用版权归原作者所有。
 
 ## 更新日志
+
+### v1.12.0 - 交互增强、PWA 支持与共享主机兼容性修复
+
+**修复共享虚拟主机 HTTP 500**
+
+- 修复 `.htaccess` 与 `data/.htaccess` 中裸写的 `Order`/`Deny`/`Require` 指令：这些指令未做模块判断，在未加载 `mod_access_compat` 的 Apache 2.4 主机上会导致 `Invalid command 'Order'` 并在 PHP 执行前返回 500。现统一使用 `<IfModule mod_authz_core.c>` 与 `<IfModule !mod_authz_core.c>` 双分支。
+- `_create_curl_handle()` 补充 `function_exists('curl_init')` 检查，共享主机未启用 cURL 扩展时降级返回而非抛出致命错误。
+- 新增 `utf8Lower()` 与 `utf8Substring()` 兼容函数，替换模板中直调的 `mb_strtolower()` 与 `mb_substr()`，缺少 mbstring 扩展时不再致命；字节截断场景会清理残缺多字节序列避免乱码。
+- 首页 GitHub 增强信息（Star/Fork、平台识别、更新时间）统一包裹 `function_exists('curl_init')` 判断与 `try/catch (Throwable)`，远程请求失败时降级使用 `resources.json` 本地数据，页面保持可用。
+- `/health` 端点前移至所有外部网络请求之前，探活不再被 GitHub API 请求拖慢或超时。
+- `error_log` 仅在日志目录确实可写时接管，否则保留主机默认日志，避免目录不可写导致启动错误无处可查。
+
+**新增功能**
+
+- 版本说明 Markdown 渲染：新增零依赖的 `renderMarkdownSubset()`，支持标题、粗体、行内代码、代码块、有序/无序列表与链接。采用先全量转义再选择性反转义白名单语法的策略，链接仅允许 `http`/`https`/`mailto` 协议，其余降级为纯文本，不放宽现有 CSP。
+- 资源卡片热度指标：新增 `includes/batch-stats.php`，通过 `curl_multi` 批量预取仓库 Star/Fork 与更新时间；成功缓存 12 小时，API 限额耗尽时缓存 5 分钟以便限额恢复后及时刷新。超过 30 天未更新的仓库显示「长期未更新」标签。
+- 下载链接一键复制：新增 `assets/copy-link.js`，采用事件委托适配异步渲染，优先使用 `navigator.clipboard`，非安全上下文回退 `execCommand`。
+- 筛选结果计数：平台与分类筛选按钮显示匹配数量，随搜索关键词实时联动。
+- 键盘快捷键：`Ctrl+K`/`Cmd+K` 始终可聚焦搜索框，`/` 在非输入上下文生效。
+- PWA 支持：新增 `manifest.webmanifest`、`sw.js` 与 `assets/pwa.js`。静态资源采用 cache-first，页面采用 network-first 并在离线时回退缓存；详情片段接口与 `/health` 不缓存以避免版本信息过期。CSP 相应补充 `worker-src 'self'` 与 `manifest-src 'self'`。
+- 移动端修复文件名截断：窄屏下下载项文件名改为换行显示，不再被省略号截断。
+
+**构建与发布**
+
+- Release workflow 补充打包 `manifest.webmanifest`、`sw.js` 与空的 `data/cache/` 目录；凭据校验规则调整为仅拦截缓存文件，允许空目录占位。
 
 ### v1.11.0 - 仓库分类与自定义下载
 

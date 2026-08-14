@@ -1,0 +1,33 @@
+{
+    "name": "Legado 资源加速下载",
+    "short_name": "Legado 加速",
+    "description": "Legado 开源阅读相关资源的聚合下载页，提供多个分支版本的加速下载入口。",
+    "lang": "zh-CN",
+    "dir": "ltr",
+    "start_url": "./index.php",
+    "scope": "./",
+    "display": "standalone",
+    "orientation": "portrait-primary",
+    "background_color": "#FFFFFF",
+    "theme_color": "#5B5BD6",
+    "icons": [
+        {
+            "src": "assets/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "assets/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "assets/icon-maskable-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ]
+}

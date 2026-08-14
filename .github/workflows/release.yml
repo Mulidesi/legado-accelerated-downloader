@@ -19,7 +19,7 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.2'
+          php-version: '7.4'
           extensions: curl, mbstring
 
       - name: Lint PHP files
@@ -34,10 +34,13 @@ jobs:
 
       - name: Build deploy package
         run: |
+          mkdir -p data/cache
           zip -r -q release.zip \
             assets includes templates \
             data/resources.json data/.htaccess data/config.local.json.example \
-            index.php .htaccess README.md SECURITY_MIGRATION.md
+            data/cache \
+            index.php .htaccess manifest.webmanifest sw.js \
+            README.md SECURITY_MIGRATION.md
 
       - name: Verify credentials are excluded
         run: |
@@ -45,11 +48,11 @@ jobs:
             echo "::error::Package contains the real credential file"
             exit 1
           fi
-          if unzip -Z1 release.zip | grep -q "^data/cache"; then
-            echo "::error::Package contains the runtime cache directory"
+          if unzip -Z1 release.zip | grep -Eq '^data/cache/.+'; then
+            echo "::error::Package contains runtime cache files"
             exit 1
           fi
-          echo "Credential and cache exclusion verified"
+          echo "Credential exclusion and empty cache directory verified"
 
       - name: Publish release
         uses: softprops/action-gh-release@v2

@@ -51,6 +51,9 @@
     function applyFilter() {
         var visible = 0;
         var visibleByGroup = {};
+        // 计数：[platform][category] 的可见数
+        var countByPlatform = {};
+        var countByCategory = {};
 
         items.forEach(function (item) {
             var matchPlatform = currentPlatform === 'all' || item.platforms.indexOf(currentPlatform) !== -1;
@@ -58,9 +61,27 @@
             var matchQuery = currentQuery === '' || item.search.indexOf(currentQuery) !== -1;
             var match = matchPlatform && matchCategory && matchQuery;
             item.el.hidden = !match;
+
             if (match) {
                 visible++;
                 visibleByGroup[item.category] = (visibleByGroup[item.category] || 0) + 1;
+            }
+
+            // 统计：在当前搜索词 + 另一维度组合条件下，各按钮的匹配数
+            var matchQueryOnly = currentQuery === '' || item.search.indexOf(currentQuery) !== -1;
+
+            // 平台按钮的计数：固定当前分类+搜索，变化平台
+            if (matchCategory && matchQueryOnly) {
+                item.platforms.forEach(function (p) {
+                    countByPlatform[p] = (countByPlatform[p] || 0) + 1;
+                });
+                countByPlatform['all'] = (countByPlatform['all'] || 0) + 1;
+            }
+
+            // 分类按钮的计数：固定当前平台+搜索，变化分类
+            if (matchPlatform && matchQueryOnly) {
+                countByCategory[item.category] = (countByCategory[item.category] || 0) + 1;
+                countByCategory['all'] = (countByCategory['all'] || 0) + 1;
             }
         });
 
@@ -82,6 +103,18 @@
                 ? '没有匹配的资源'
                 : '共显示 ' + visible + ' 个资源';
         }
+
+        // 更新平台筛选按钮计数
+        document.querySelectorAll('[data-count-platform]').forEach(function (span) {
+            var key = span.dataset.countPlatform;
+            span.textContent = countByPlatform[key] || 0;
+        });
+
+        // 更新分类筛选按钮计数
+        document.querySelectorAll('[data-count-category]').forEach(function (span) {
+            var key = span.dataset.countCategory;
+            span.textContent = countByCategory[key] || 0;
+        });
     }
 
     filterBtns.forEach(function (btn) {
@@ -147,6 +180,45 @@
     if (searchClear) {
         searchClear.addEventListener('click', clearSearch);
     }
+
+    /* ---------- 键盘快捷键：聚焦搜索 ---------- */
+
+    /**
+     * 判断焦点是否已在可输入元素内。
+     * 若已在输入框中，"/" 应作为普通字符输入，不应劫持。
+     */
+    function isTypingContext(el) {
+        if (!el) {
+            return false;
+        }
+        var tag = el.tagName;
+        return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable;
+    }
+
+    document.addEventListener('keydown', function (e) {
+        if (!searchInput) {
+            return;
+        }
+
+        // Ctrl+K / Cmd+K：即使在输入框中也允许跳转到搜索
+        var isCmdK = (e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K');
+
+        // "/"：仅在非输入上下文触发，且不带修饰键
+        var isSlash = e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey && !isTypingContext(document.activeElement);
+
+        if (!isCmdK && !isSlash) {
+            return;
+        }
+
+        // 侧栏打开时不抢焦点，避免与焦点锁定冲突
+        if (sheet && !sheet.hidden) {
+            return;
+        }
+
+        e.preventDefault();
+        searchInput.focus();
+        searchInput.select();
+    });
 
     /* ---------- 详情侧栏 ---------- */
 

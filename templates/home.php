@@ -7,7 +7,9 @@
     <meta name="description" content="Legado 开源阅读相关资源的聚合下载页，提供多个分支版本的加速下载入口。">
     <meta name="theme-color" content="#5B5BD6">
     <link rel="icon" href="assets/favicon.ico" type="image/x-icon">
-    <script>
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+    <script nonce="<?= $cspNonce ?>">
         (function() {
             const saved = localStorage.getItem('gh-accel-theme');
             const theme = saved || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
@@ -139,7 +141,7 @@
                 <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
                     <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>
                 </svg>
-                <input type="search" id="search-input" placeholder="搜索资源名称或仓库" aria-label="搜索资源" autocomplete="off">
+                <input type="search" id="search-input" placeholder="搜索资源名称或仓库" aria-label="搜索资源" title="快捷键：Ctrl+K 或 /" autocomplete="off">
                 <button class="search-clear" id="search-clear" type="button" aria-label="清除搜索" hidden>
                     <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
                         <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
@@ -148,17 +150,42 @@
             </div>
 
             <div class="filters" role="group" aria-label="按平台筛选">
-                <button class="filter-btn active" type="button" data-platform="all" aria-pressed="true">全部</button>
+                <button class="filter-btn active" type="button" data-platform="all" aria-pressed="true">
+                    全部<span class="filter-count" data-count-platform="all"><?= $totalCount ?></span>
+                </button>
                 <?php foreach ($filterPlatforms as $platform): ?>
-                    <button class="filter-btn" type="button" data-platform="<?= h($platform) ?>" aria-pressed="false"><?= h($platform) ?></button>
+                    <?php
+                    $platformCount = 0;
+                    foreach ($resources as $r) {
+                        if (!empty($r['platforms']) && in_array($platform, $r['platforms'])) {
+                            $platformCount++;
+                        }
+                    }
+                    ?>
+                    <button class="filter-btn" type="button" data-platform="<?= h($platform) ?>" aria-pressed="false">
+                        <?= h($platform) ?><span class="filter-count" data-count-platform="<?= h($platform) ?>"><?= $platformCount ?></span>
+                    </button>
                 <?php endforeach; ?>
             </div>
 
             <?php if (!empty($filterCategories)): ?>
                 <div class="filters" role="group" aria-label="按分类筛选">
-                    <button class="filter-btn category-filter active" type="button" data-category="all" aria-pressed="true">全部</button>
+                    <button class="filter-btn category-filter active" type="button" data-category="all" aria-pressed="true">
+                        全部<span class="filter-count" data-count-category="all"><?= $totalCount ?></span>
+                    </button>
                     <?php foreach ($filterCategories as $category): ?>
-                        <button class="filter-btn category-filter" type="button" data-category="<?= h($category) ?>" aria-pressed="false"><?= h($category) ?></button>
+                        <?php
+                        $categoryCount = 0;
+                        foreach ($resources as $r) {
+                            $rCat = isset($r['category']) && trim($r['category']) !== '' ? trim($r['category']) : '未分类';
+                            if ($rCat === $category) {
+                                $categoryCount++;
+                            }
+                        }
+                        ?>
+                        <button class="filter-btn category-filter" type="button" data-category="<?= h($category) ?>" aria-pressed="false">
+                            <?= h($category) ?><span class="filter-count" data-count-category="<?= h($category) ?>"><?= $categoryCount ?></span>
+                        </button>
                     <?php endforeach; ?>
                 </div>
             <?php endif; ?>
@@ -209,7 +236,7 @@
                        data-name="<?= h($resource['name']) ?>"
                        data-category="<?= h($categoryName) ?>"
                        data-platforms='<?= h(json_encode($resource['platforms'] ?? array(), JSON_UNESCAPED_UNICODE)) ?>'
-                       data-search="<?= h(mb_strtolower($resource['name'] . ' ' . $resource['owner'] . '/' . $resource['repo'])) ?>">
+                       data-search="<?= h(utf8Lower($resource['name'] . ' ' . $resource['owner'] . '/' . $resource['repo'])) ?>">
                         <div class="card-top">
                             <h2 class="card-title" title="<?= h($resource['name']) ?>">
                                 <a class="card-link" href="<?= h($detailUrl) ?>"><?= h($resource['name']) ?></a>
@@ -245,9 +272,30 @@
                                 <img src="assets/github-icon.png" alt="" width="14" height="14" loading="lazy">
                                 <span class="card-repo-text"><?= h($resource['owner'] . '/' . $resource['repo']) ?></span>
                             </span>
-                            <?php if (!empty($resource['updatedAt'])): ?>
-                                <span class="card-date"><?= h(formatDate($resource['updatedAt'])) ?></span>
-                            <?php endif; ?>
+                            <div class="card-meta">
+                                <?php if (isset($resource['stats'])): ?>
+                                    <?php $cardStats = $resource['stats']; ?>
+                                    <?php if ($cardStats['stars'] !== null): ?>
+                                        <span class="card-stat" title="<?= $cardStats['stars'] ?> Stars">
+                                            <svg class="card-stat-icon" xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                                                <path d="M3.612 15.443c-.386.198-.824-.149-.746-.592l.83-4.73L.173 6.765c-.329-.314-.158-.888.283-.95l4.898-.696L7.538.792c.197-.39.73-.39.927 0l2.184 4.327 4.898.696c.441.062.612.636.282.95l-3.522 3.356.83 4.73c.078.443-.36.79-.746.592L8 13.187l-4.389 2.256z"/>
+                                            </svg>
+                                            <?= h(number_format($cardStats['stars'])) ?>
+                                        </span>
+                                        <span class="card-stat" title="<?= $cardStats['forks'] ?> Forks">
+                                            <svg class="card-stat-icon" xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                                                <path d="M5 3.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0zm0 2.122a2.25 2.25 0 1 0-1.5 0v.878A2.25 2.25 0 0 0 5.75 8.5h1.5v2.128a2.251 2.251 0 1 0 1.5 0V8.5h1.5a2.25 2.25 0 0 0 2.25-2.25v-.878a2.25 2.25 0 1 0-1.5 0v.878a.75.75 0 0 1-.75.75h-4.5A.75.75 0 0 1 5 6.25v-.878zm3.75 7.378a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0zm3-8.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5z"/>
+                                            </svg>
+                                            <?= h(number_format($cardStats['forks'])) ?>
+                                        </span>
+                                    <?php endif; ?>
+                                    <?php if (!empty($cardStats['stale'])): ?>
+                                        <span class="card-stale" title="超过 30 天未更新">长期未更新</span>
+                                    <?php endif; ?>
+                                <?php elseif (!empty($resource['updatedAt'])): ?>
+                                    <span class="card-date"><?= h(formatDate($resource['updatedAt'])) ?></span>
+                                <?php endif; ?>
+                            </div>
                         </div>
                     </article>
                 <?php endforeach; ?>
@@ -286,6 +334,8 @@
     </aside>
 
     <script src="assets/app.js"></script>
+    <script src="assets/copy-link.js"></script>
     <script src="assets/theme-switcher.js"></script>
+    <script src="assets/pwa.js"></script>
 </body>
 </html>

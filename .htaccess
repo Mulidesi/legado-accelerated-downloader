@@ -21,22 +21,41 @@
     </FilesMatch>
 </IfModule>
 
-# 或者使用 FilesMatch
-<FilesMatch "^\.">
-    Order allow,deny
-    Deny from all
-</FilesMatch>
+# 禁止访问所有点开头的隐藏文件
+# Apache 2.4 使用 Require；2.2 才使用 Order/Deny。
+# 裸写 Order/Deny 会在未加载 mod_access_compat 的 2.4 主机上报
+# "Invalid command 'Order'" 并直接返回 500，因此必须做模块判断。
+<IfModule mod_authz_core.c>
+    <FilesMatch "^\.">
+        Require all denied
+    </FilesMatch>
+</IfModule>
+
+<IfModule !mod_authz_core.c>
+    <FilesMatch "^\.">
+        Order allow,deny
+        Deny from all
+    </FilesMatch>
+</IfModule>
 
 # 禁止访问 .git 目录
 <IfModule mod_rewrite.c>
     RewriteRule ^\.git/ - [F,L]
 </IfModule>
 
-# 禁止访问日志文件
-<FilesMatch "\.(log|json\.local)$">
-    Order allow,deny
-    Deny from all
-</FilesMatch>
+# 禁止访问日志和本地配置文件
+<IfModule mod_authz_core.c>
+    <FilesMatch "\.(log|json\.local)$">
+        Require all denied
+    </FilesMatch>
+</IfModule>
+
+<IfModule !mod_authz_core.c>
+    <FilesMatch "\.(log|json\.local)$">
+        Order allow,deny
+        Deny from all
+    </FilesMatch>
+</IfModule>
 
 # PHP 设置 (如果允许)
 <IfModule mod_php7.c>

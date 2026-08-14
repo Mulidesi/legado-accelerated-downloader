@@ -3,3 +3,4 @@ data/config.local.json
 *.local.json
 data/*.log
 legado-deploy-*.zip
+legado-accelerated-downloader-deploy*.zip

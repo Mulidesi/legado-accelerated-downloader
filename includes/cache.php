@@ -13,35 +13,38 @@ if (!is_dir(CACHE_DIR)) {
     @mkdir(CACHE_DIR, 0755, true);
 }
 
+// 缓存目录可用性检查（一次性）
+define('CACHE_AVAILABLE', is_dir(CACHE_DIR) && is_writable(CACHE_DIR));
+
 /**
  * 获取文件缓存
  */
 function file_cache_get($key) {
     $file = CACHE_DIR . '/' . md5($key) . '.json';
-    
+
     if (!file_exists($file)) {
         return null;
     }
-    
+
     $content = @file_get_contents($file);
     if ($content === false) {
         return null;
     }
-    
+
     $data = json_decode($content, true);
     if (!$data || !is_array($data)) {
         return null;
     }
-    
+
     if (!isset($data['expire']) || !isset($data['value'])) {
         return null;
     }
-    
+
     if ($data['expire'] < time()) {
         @unlink($file);
         return null;
     }
-    
+
     return $data['value'];
 }
 
@@ -49,20 +52,37 @@ function file_cache_get($key) {
  * 设置文件缓存
  */
 function file_cache_set($key, $value, $ttl = 3600) {
-    $file = CACHE_DIR . '/' . md5($key) . '.json';
-    
-    // 如果目录不可写，直接返回（降级处理）
-    if (!is_dir(CACHE_DIR) || !is_writable(CACHE_DIR)) {
+    // 如果缓存不可用，直接返回（降级处理）
+    if (!CACHE_AVAILABLE) {
         return false;
     }
-    
+
+    $file = CACHE_DIR . '/' . md5($key) . '.json';
+
     $data = array(
         'expire' => time() + $ttl,
         'value' => $value,
     );
-    
-    @file_put_contents($file, json_encode($data), LOCK_EX);
-    return true;
+
+    // 使用临时文件实现原子性写入
+    $tempFile = $file . '.' . uniqid('tmp', true);
+    $written = @file_put_contents($tempFile, json_encode($data), LOCK_EX);
+
+    if ($written !== false) {
+        @chmod($tempFile, 0600); // 仅所有者可读写
+
+        // 必须确认 rename 成功再返回 true：限流计数依赖写入结果，
+        // 误报成功会让调用方以为计数已持久化。
+        if (@rename($tempFile, $file)) {
+            return true;
+        }
+
+        @unlink($tempFile); // 替换失败时清理临时文件，避免残留
+        return false;
+    }
+
+    @unlink($tempFile);
+    return false;
 }
 
 /**
@@ -79,11 +99,11 @@ function github_api_multi_request($urls, $timeout = 15, $cacheTtl = API_CACHE_TT
     if (empty($urls)) {
         return array();
     }
-    
+
     // 检查缓存
     $results = array();
     $urls_to_fetch = array();
-    
+
     foreach ($urls as $key => $url) {
         $cacheKey = 'api:' . md5($url);
         $cached = file_cache_get($cacheKey);
@@ -93,11 +113,11 @@ function github_api_multi_request($urls, $timeout = 15, $cacheTtl = API_CACHE_TT
             $urls_to_fetch[$key] = $url;
         }
     }
-    
+
     if (empty($urls_to_fetch)) {
         return $results;
     }
-    
+
     // 如果不支持并发，降级为顺序请求
     if (!supports_multi_curl()) {
         foreach ($urls_to_fetch as $key => $url) {
@@ -105,7 +125,7 @@ function github_api_multi_request($urls, $timeout = 15, $cacheTtl = API_CACHE_TT
         }
         return $results;
     }
-    
+
     // 并发请求
     $mh = curl_multi_init();
     if ($mh === false) {
@@ -115,9 +135,9 @@ function github_api_multi_request($urls, $timeout = 15, $cacheTtl = API_CACHE_TT
         }
         return $results;
     }
-    
+
     $chs = array();
-    
+
     foreach ($urls_to_fetch as $key => $url) {
         $ch = _create_curl_handle($url, $timeout);
         if ($ch === false) {
@@ -126,20 +146,29 @@ function github_api_multi_request($urls, $timeout = 15, $cacheTtl = API_CACHE_TT
         curl_multi_add_handle($mh, $ch);
         $chs[$key] = $ch;
     }
-    
+
     if (empty($chs)) {
         curl_multi_close($mh);
         return $results;
     }
-    
+
     // 执行所有请求
     $running = null;
+    $startTime = time();
+    $maxWaitTime = $timeout + 5; // 允许额外 5 秒，防止 select 异常导致无限等待
+
     do {
         do {
             $execResult = curl_multi_exec($mh, $running);
         } while ($execResult === CURLM_CALL_MULTI_PERFORM);
 
         if ($execResult !== CURLM_OK) {
+            break;
+        }
+
+        // 超时保护：避免 curl_multi_select 持续返回 -1 时死循环
+        if (time() - $startTime > $maxWaitTime) {
+            error_log('curl_multi 等待超时，已中断剩余请求');
             break;
         }
 
@@ -150,14 +179,14 @@ function github_api_multi_request($urls, $timeout = 15, $cacheTtl = API_CACHE_TT
             }
         }
     } while ($running > 0);
-    
+
     // 收集结果
     foreach ($chs as $key => $ch) {
         $response = curl_multi_getcontent($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_multi_remove_handle($mh, $ch);
         curl_close($ch);
-        
+
         if ($httpCode === 200 && $response) {
             $data = json_decode($response, true);
             if (is_array($data)) {
@@ -172,7 +201,7 @@ function github_api_multi_request($urls, $timeout = 15, $cacheTtl = API_CACHE_TT
             $results[$key] = null;
         }
     }
-    
+
     curl_multi_close($mh);
     return $results;
 }
@@ -186,12 +215,12 @@ function github_api_single_request($url, $timeout = 15, $cacheTtl = API_CACHE_TT
     if ($cached !== null) {
         return $cached;
     }
-    
+
     $ch = _create_curl_handle($url, $timeout, $includeToken);
     if ($ch === false) {
         return null;
     }
-    
+
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
@@ -199,7 +228,7 @@ function github_api_single_request($url, $timeout = 15, $cacheTtl = API_CACHE_TT
     if ($httpCode === 401 && $includeToken && getGitHubToken() !== '') {
         return github_api_single_request($url, $timeout, $cacheTtl, false);
     }
-    
+
     if ($httpCode === 200 && $response) {
         $data = json_decode($response, true);
         if (is_array($data)) {
@@ -207,7 +236,7 @@ function github_api_single_request($url, $timeout = 15, $cacheTtl = API_CACHE_TT
             return $data;
         }
     }
-    
+
     return null;
 }
 
@@ -218,12 +247,12 @@ function getResourcePlatformsBatch($resources) {
     if (empty($resources)) {
         return array();
     }
-    
+
     // 构建请求列表，按 owner/repo 去重
     $urls = array();
     $resourceMap = array();
     $repoKeys = array();
-    
+
     foreach ($resources as $index => $resource) {
         if (isset($resource['platforms']) && is_array($resource['platforms'])) {
             $resourceMap[$index] = array_values(array_unique($resource['platforms']));
@@ -234,9 +263,9 @@ function getResourcePlatformsBatch($resources) {
             $resourceMap[$index] = array();
             continue;
         }
-        
+
         $key = $resource['owner'] . '/' . $resource['repo'];
-        
+
         // 先检查缓存
         $cacheKey = "platforms:{$key}";
         $cached = file_cache_get($cacheKey);
@@ -244,7 +273,7 @@ function getResourcePlatformsBatch($resources) {
             $resourceMap[$index] = $cached;
             continue;
         }
-        
+
         if (!isset($repoKeys[$key])) {
             $repoKeys[$key] = array(
                 'indices' => array(),
@@ -254,7 +283,7 @@ function getResourcePlatformsBatch($resources) {
         $repoKeys[$key]['indices'][] = $index;
         $resourceMap[$index] = null;
     }
-    
+
     // 按唯一 repo 构建请求列表
     foreach ($repoKeys as $key => $info) {
         if ($info['sourceType'] === 'tag') {
@@ -263,16 +292,16 @@ function getResourcePlatformsBatch($resources) {
             $urls[$key] = "https://api.github.com/repos/{$key}/releases?per_page=3";
         }
     }
-    
+
     // 并发请求
     if (!empty($urls)) {
         $responses = github_api_multi_request($urls, 15, PLATFORMS_CACHE_TTL);
-        
+
         foreach ($responses as $key => $data) {
             $info = $repoKeys[$key];
             $indices = $info['indices'];
             $platforms = array();
-            
+
             if (is_array($data)) {
                 foreach ($data as $item) {
                     if ($info['sourceType'] === 'tag') {
@@ -286,7 +315,7 @@ function getResourcePlatformsBatch($resources) {
                     }
                 }
             }
-            
+
             // 回退检测
             if (empty($platforms) && count($indices) > 0) {
                 $firstResource = $resources[$indices[0]];
@@ -303,18 +332,18 @@ function getResourcePlatformsBatch($resources) {
                     }
                 }
             }
-            
+
             $platforms = array_values(array_unique($platforms));
-            
+
             // 应用到所有共享该 repo 的资源
             foreach ($indices as $idx) {
                 $resourceMap[$idx] = $platforms;
             }
-            
+
             file_cache_set("platforms:{$key}", $platforms, PLATFORMS_CACHE_TTL);
         }
     }
-    
+
     return $resourceMap;
 }
 
@@ -425,4 +454,25 @@ function clear_cache() {
             @unlink($file);
         }
     }
+}
+
+/**
+ * 速率限制检查
+ */
+function checkRateLimit($ip, $maxRequests = 60, $window = 3600) {
+    $key = 'ratelimit:' . md5($ip);
+    $data = file_cache_get($key);
+
+    if ($data === null) {
+        file_cache_set($key, array('count' => 1, 'reset' => time() + $window), $window);
+        return true;
+    }
+
+    if ($data['count'] >= $maxRequests) {
+        return false;
+    }
+
+    $data['count']++;
+    file_cache_set($key, $data, $window);
+    return true;
 }

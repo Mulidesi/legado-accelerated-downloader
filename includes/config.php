@@ -166,27 +166,30 @@ function loadSecureConfig() {
     
     $config['githubToken'] = $token ?: '';
     
-    // 读取资源列表
+    // 读取资源列表：单次解码后批量提取字段，避免重复 is_array 校验
     if (file_exists($resourcesFile)) {
         $resourcesData = @json_decode(file_get_contents($resourcesFile), true);
-        if (is_array($resourcesData) && isset($resourcesData['resources'])) {
-            $config['resources'] = $resourcesData['resources'];
-        }
-        if (is_array($resourcesData) && isset($resourcesData['marquee']) && is_array($resourcesData['marquee'])) {
-            $config['marquee'] = sanitizeMarqueeConfig($resourcesData['marquee']);
-        }
-        if (is_array($resourcesData) && isset($resourcesData['categories'])) {
-            $config['categories'] = sanitizeCategories($resourcesData['categories']);
-        }
-        if (is_array($resourcesData) && !empty($resourcesData['githubToken'])) {
-            $config['legacyTokenInResources'] = true;
-        }
-        // 兼容旧配置
-        if (is_array($resourcesData) && isset($resourcesData['proxyUrls'])) {
-            $config['proxyUrls'] = sanitizeProxyUrls($resourcesData['proxyUrls']);
+
+        if (is_array($resourcesData)) {
+            if (isset($resourcesData['resources']) && is_array($resourcesData['resources'])) {
+                $config['resources'] = $resourcesData['resources'];
+            }
+            if (isset($resourcesData['marquee']) && is_array($resourcesData['marquee'])) {
+                $config['marquee'] = sanitizeMarqueeConfig($resourcesData['marquee']);
+            }
+            if (isset($resourcesData['categories'])) {
+                $config['categories'] = sanitizeCategories($resourcesData['categories']);
+            }
+            $config['legacyTokenInResources'] = !empty($resourcesData['githubToken']);
+            // 兼容旧配置
+            if (isset($resourcesData['proxyUrls'])) {
+                $config['proxyUrls'] = $resourcesData['proxyUrls'];
+            }
         }
     }
+
+    // 代理地址统一在此清洗一次，避免重复调用
     $config['proxyUrls'] = sanitizeProxyUrls($config['proxyUrls']);
-    
+
     return $config;
 }

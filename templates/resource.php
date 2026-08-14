@@ -4,10 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= h($resource['name']) ?> - Legado 资源加速下载</title>
-    <meta name="description" content="<?= h(mb_substr(trim(preg_replace('/\s+/u', ' ', $resource['description'] ?? '')), 0, 120)) ?>">
+    <meta name="description" content="<?= h(utf8Substring(trim(preg_replace('/\s+/u', ' ', $resource['description'] ?? '')), 0, 120)) ?>">
     <meta name="theme-color" content="#5B5BD6">
     <link rel="icon" href="assets/favicon.ico" type="image/x-icon">
-    <script>
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+    <script nonce="<?= $cspNonce ?>">
         (function() {
             const saved = localStorage.getItem('gh-accel-theme');
             const theme = saved || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
@@ -56,6 +58,8 @@
         </footer>
     </div>
 
+    <script src="assets/copy-link.js"></script>
     <script src="assets/theme-switcher.js"></script>
+    <script src="assets/pwa.js"></script>
 </body>
 </html>

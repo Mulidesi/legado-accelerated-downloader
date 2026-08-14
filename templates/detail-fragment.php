@@ -115,21 +115,33 @@ $description = trim($resource['description'] ?? '');
             <?php if ($body !== ''): ?>
                 <details class="notes">
                     <summary>版本说明</summary>
-                    <div class="notes-body"><?= h($body) ?></div>
+                    <div class="notes-body"><?= renderMarkdownSubset($body) ?></div>
                 </details>
             <?php endif; ?>
 
             <?php if ($hasAssets): ?>
                 <div class="asset-list">
                     <?php foreach ($release['assets'] as $asset): ?>
-                        <a class="asset" href="<?= h(buildAcceleratedUrlOptimized($proxyUrls, $asset['browser_download_url'])) ?>" target="_blank" rel="noopener noreferrer">
-                            <svg class="asset-icon" xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
-                                <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
-                                <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
-                            </svg>
-                            <span class="asset-name" title="<?= h($asset['name']) ?>"><?= h($asset['name']) ?></span>
-                            <span class="asset-size"><?= h(formatFileSizeOptimized($asset['size'])) ?></span>
-                        </a>
+                        <?php $downloadUrl = buildAcceleratedUrlOptimized($proxyUrls, $asset['browser_download_url']); ?>
+                        <div class="asset-row">
+                            <a class="asset" href="<?= h($downloadUrl) ?>" target="_blank" rel="noopener noreferrer">
+                                <svg class="asset-icon" xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                                    <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+                                    <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
+                                </svg>
+                                <span class="asset-name" title="<?= h($asset['name']) ?>"><?= h($asset['name']) ?></span>
+                                <span class="asset-size"><?= h(formatFileSizeOptimized($asset['size'])) ?></span>
+                            </a>
+                            <button class="asset-copy" type="button" data-url="<?= h($downloadUrl) ?>" aria-label="复制下载链接" title="复制链接">
+                                <svg class="icon-copy" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                                    <path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z"/>
+                                    <path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z"/>
+                                </svg>
+                                <svg class="icon-copied" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                                    <path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z"/>
+                                </svg>
+                            </button>
+                        </div>
                     <?php endforeach; ?>
                 </div>
             <?php elseif ($hasSource): ?>
@@ -144,13 +156,25 @@ $description = trim($resource['description'] ?? '');
                     }
                     ?>
                     <?php foreach ($sourceLinks as $label => $url): ?>
-                        <a class="asset" href="<?= h(buildAcceleratedUrlOptimized($proxyUrls, $url)) ?>" target="_blank" rel="noopener noreferrer">
-                            <svg class="asset-icon" xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
-                                <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
-                                <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
-                            </svg>
-                            <span class="asset-name"><?= h($label) ?></span>
-                        </a>
+                        <?php $downloadUrl = buildAcceleratedUrlOptimized($proxyUrls, $url); ?>
+                        <div class="asset-row">
+                            <a class="asset" href="<?= h($downloadUrl) ?>" target="_blank" rel="noopener noreferrer">
+                                <svg class="asset-icon" xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                                    <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+                                    <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
+                                </svg>
+                                <span class="asset-name"><?= h($label) ?></span>
+                            </a>
+                            <button class="asset-copy" type="button" data-url="<?= h($downloadUrl) ?>" aria-label="复制下载链接" title="复制链接">
+                                <svg class="icon-copy" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                                    <path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z"/>
+                                    <path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z"/>
+                                </svg>
+                                <svg class="icon-copied" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                                    <path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z"/>
+                                </svg>
+                            </button>
+                        </div>
                     <?php endforeach; ?>
                 </div>
             <?php else: ?>
