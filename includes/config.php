@@ -97,6 +97,41 @@ function sanitizeMarqueeConfig($marquee) {
     return $result;
 }
 
+function sanitizeCategories($categories) {
+    $result = array();
+
+    if (!is_array($categories)) {
+        return $result;
+    }
+
+    foreach ($categories as $cat) {
+        $name = is_string($cat) ? trim($cat) : '';
+        if ($name === '') {
+            continue;
+        }
+        $name = function_exists('mb_substr') ? mb_substr($name, 0, 40, 'UTF-8') : substr($name, 0, 120);
+        $name = trim($name);
+        if ($name === '') {
+            continue;
+        }
+        $exists = false;
+        foreach ($result as $existing) {
+            if ($existing === $name) {
+                $exists = true;
+                break;
+            }
+        }
+        if (!$exists) {
+            $result[] = $name;
+        }
+        if (count($result) >= 20) {
+            break;
+        }
+    }
+
+    return $result;
+}
+
 function loadSecureConfig() {
     $dataDir = defined('DATA_DIR') ? DATA_DIR : __DIR__ . '/../data';
     $localConfigFile = $dataDir . '/config.local.json';
@@ -109,6 +144,7 @@ function loadSecureConfig() {
             'https://ghproxy.monkeyray.net/',
             'https://gproxy.mlds.dpdns.org/'
         ),
+        'categories' => array(),
         'marquee' => array(
             'enabled' => false,
             'items' => array()
@@ -138,6 +174,9 @@ function loadSecureConfig() {
         }
         if (is_array($resourcesData) && isset($resourcesData['marquee']) && is_array($resourcesData['marquee'])) {
             $config['marquee'] = sanitizeMarqueeConfig($resourcesData['marquee']);
+        }
+        if (is_array($resourcesData) && isset($resourcesData['categories'])) {
+            $config['categories'] = sanitizeCategories($resourcesData['categories']);
         }
         if (is_array($resourcesData) && !empty($resourcesData['githubToken'])) {
             $config['legacyTokenInResources'] = true;

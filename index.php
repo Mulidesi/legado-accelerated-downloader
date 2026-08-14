@@ -59,6 +59,12 @@ if (isset($_GET['owner']) && isset($_GET['repo'])) {
     $owner = $_GET['owner'];
     $repo = $_GET['repo'];
     
+    // 安全性校验：输入总长度不超过 500 字符
+    if (strlen($owner) + strlen($repo) > 500) {
+        http_response_code(400);
+        exit('<h1>请求参数过长</h1>');
+    }
+    
     // 查找资源
     $resource = null;
     foreach ($resources as $r) {
@@ -71,8 +77,22 @@ if (isset($_GET['owner']) && isset($_GET['repo'])) {
     }
     
     if (!$resource) {
-        http_response_code(404);
-        exit('<h1>资源不存在</h1>');
+        // 校验 owner/repo 格式，合法则构造临时自定义资源
+        $ownerValid = preg_match('/^[A-Za-z0-9._-]{1,100}$/', $owner);
+        $repoValid  = preg_match('/^[A-Za-z0-9._-]{1,100}$/', $repo);
+        if (!$ownerValid || !$repoValid) {
+            http_response_code(404);
+            exit('<h1>资源不存在</h1>');
+        }
+        $resource = array(
+            'name'          => $owner . '/' . $repo,
+            'owner'         => $owner,
+            'repo'          => $repo,
+            'description'   => '',
+            'platforms'     => array(),
+            'usePrerelease' => true,
+            '_isCustom'     => true,
+        );
     }
     
     $proxyUrls = isset($config['proxyUrls']) ? $config['proxyUrls'] : array('https://ghproxy.net/');

@@ -75,6 +75,22 @@
         <?php endif; ?>
     </header>
 
+    <div class="container custom-download">
+        <div class="custom-download-inner">
+            <label for="custom-repo-input" class="custom-download-label">自定义仓库加速下载</label>
+            <div class="custom-download-row">
+                <input type="text" 
+                       id="custom-repo-input" 
+                       class="custom-repo-input" 
+                       placeholder="输入 owner/repo 或 https://github.com/owner/repo" 
+                       autocomplete="off"
+                       aria-describedby="custom-repo-error">
+                <button type="button" id="custom-repo-submit" class="custom-repo-submit">获取下载</button>
+            </div>
+            <div id="custom-repo-error" class="custom-repo-error" role="alert" aria-live="assertive"></div>
+        </div>
+    </div>
+
     <?php
     // 从实际资源数据中汇总可用平台，避免出现永远筛不到结果的按钮
     $availablePlatforms = array();
@@ -95,6 +111,26 @@
     }
     $filterPlatforms = array_merge($filterPlatforms, array_keys($availablePlatforms));
     $totalCount = count($resources);
+    
+    // 分类汇总：优先使用配置的 categories，为空时从资源动态汇总
+    $filterCategories = array();
+    if (!empty($config['categories']) && is_array($config['categories'])) {
+        $filterCategories = $config['categories'];
+    } else {
+        $categorySeen = array();
+        foreach ($resources as $r) {
+            $cat = isset($r['category']) && trim($r['category']) !== '' ? trim($r['category']) : '未分类';
+            if (!isset($categorySeen[$cat])) {
+                $categorySeen[$cat] = true;
+                if ($cat !== '未分类') {
+                    $filterCategories[] = $cat;
+                }
+            }
+        }
+        if (isset($categorySeen['未分类'])) {
+            $filterCategories[] = '未分类';
+        }
+    }
     ?>
 
     <div class="toolbar">
@@ -118,6 +154,15 @@
                 <?php endforeach; ?>
             </div>
 
+            <?php if (!empty($filterCategories)): ?>
+                <div class="filters" role="group" aria-label="按分类筛选">
+                    <button class="filter-btn category-filter active" type="button" data-category="all" aria-pressed="true">全部</button>
+                    <?php foreach ($filterCategories as $category): ?>
+                        <button class="filter-btn category-filter" type="button" data-category="<?= h($category) ?>" aria-pressed="false"><?= h($category) ?></button>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+
             <span class="result-count" id="result-count"><?= $totalCount ?> 个资源</span>
         </div>
     </div>
@@ -131,13 +176,38 @@
                 <p>请编辑 data/resources.json 添加资源配置。</p>
             </div>
         <?php else: ?>
-            <div class="grid" id="resource-grid">
-                <?php foreach ($resources as $resource): ?>
+            <?php
+            // 按分类分组资源，保持 filterCategories 的顺序
+            $groupedResources = array();
+            foreach ($filterCategories as $cat) {
+                $groupedResources[$cat] = array();
+            }
+            foreach ($resources as $r) {
+                $cat = isset($r['category']) && trim($r['category']) !== '' ? trim($r['category']) : '未分类';
+                if (!isset($groupedResources[$cat])) {
+                    $groupedResources[$cat] = array();
+                }
+                $groupedResources[$cat][] = $r;
+            }
+            // 移除空分组
+            foreach (array_keys($groupedResources) as $cat) {
+                if (empty($groupedResources[$cat])) {
+                    unset($groupedResources[$cat]);
+                }
+            }
+            ?>
+            <div id="resource-grid">
+            <?php foreach ($groupedResources as $categoryName => $categoryResources): ?>
+            <section class="category-group" data-category-group="<?= h($categoryName) ?>">
+                <h2 class="category-group-title"><?= h($categoryName) ?><span class="category-group-count"><?= count($categoryResources) ?></span></h2>
+                <div class="grid">
+                <?php foreach ($categoryResources as $resource): ?>
                     <?php $detailUrl = 'index.php?owner=' . urlencode($resource['owner']) . '&repo=' . urlencode($resource['repo']); ?>
                     <article class="card <?= !empty($resource['recommended']) ? 'recommended' : '' ?>"
                        data-owner="<?= h($resource['owner']) ?>"
                        data-repo="<?= h($resource['repo']) ?>"
                        data-name="<?= h($resource['name']) ?>"
+                       data-category="<?= h($categoryName) ?>"
                        data-platforms='<?= h(json_encode($resource['platforms'] ?? array(), JSON_UNESCAPED_UNICODE)) ?>'
                        data-search="<?= h(mb_strtolower($resource['name'] . ' ' . $resource['owner'] . '/' . $resource['repo'])) ?>">
                         <div class="card-top">
@@ -181,6 +251,9 @@
                         </div>
                     </article>
                 <?php endforeach; ?>
+                </div>
+            </section>
+            <?php endforeach; ?>
             </div>
 
             <div class="empty-state" id="empty-state" hidden>

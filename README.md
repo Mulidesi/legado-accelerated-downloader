@@ -2,19 +2,21 @@
 
 基于 PHP 的 GitHub Release 聚合下载站点，用于集中展示 Legado 相关资源，并通过配置的 HTTPS 加速代理生成下载入口。项目采用单入口 PHP 架构，适合部署在支持 PHP 和 cURL 的虚拟主机、Apache、Nginx 或轻量 PHP 运行环境中。
 
-[![Version](https://img.shields.io/badge/version-1.10.0-blue.svg)](https://github.com)
+[![Version](https://img.shields.io/badge/version-1.11.0-blue.svg)](https://github.com)
 [![PHP](https://img.shields.io/badge/PHP-7.4+-blue.svg)](https://php.net)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 ## 功能特性
 
-- 使用 `data/resources.json` 管理资源列表、代理地址和首页跑马灯。
+- 使用 `data/resources.json` 管理资源列表、代理地址、分类和首页跑马灯。
+- 支持资源分类分组展示，可在配置文件中自定义分类顺序。
+- 支持自定义仓库临时加速下载，无需预先配置即可查看任意 GitHub 仓库的 release。
 - 调用 GitHub API 获取 release、仓库 Stars、Forks 和更新时间。
 - 支持 Tag 数据源，可通过 `sourceType: "tag"` 配置使用 GitHub Tags API。
 - 支持预发布版本筛选，可按资源单独配置 `usePrerelease`。
 - 支持 Android、iOS、Windows、HarmonyOS、macOS、Linux 平台展示和筛选。
 - 资源可配置 `platforms` 字段，首页优先使用配置值，减少 GitHub API 请求。
-- 支持推荐资源置顶展示。
+- 支持推荐资源在所属分类内置顶展示。
 - 支持多组 HTTPS 下载代理，并限制代理域名 allowlist。
 - 首页展示每个资源的最近更新时间，与详情页保持一致。
 - 详情页展示最近 release/tag、资源文件、平台标签和加速下载按钮。
@@ -72,9 +74,34 @@ php -S localhost:8000
         "enabled": true,
         "items": [
             {
-                "text": "欢迎访问 Legado 资源加速下载站，点击查看开源阅读项目 Legado。",
+                "text": "欢迎访问 Legado 资源加速下载站,点击查看开源阅读项目 Legado。",
                 "url": "https://github.com/gedoor/legado"
             }
+        ]
+    },
+    "categories": ["阅读", "工具"],
+    "resources": [
+        {
+            "name": "阅读 Archive",
+            "owner": "Rimchars",
+            "repo": "legado",
+            "category": "阅读",
+            "description": "阅读 Archive 继承自 Lyc 维护的 Legado 分支。",
+            "platforms": ["Android"],
+            "usePrerelease": true,
+            "recommended": true
+        },
+        {
+            "name": "示例 Tag 项目",
+            "owner": "github-owner",
+            "repo": "repo-name",
+            "category": "工具",
+            "description": "编译资源在 Tag 中的项目示例。",
+            "sourceType": "tag",
+            "usePrerelease": true
+        }
+    ]
+}
         ]
     },
     "resources": [
@@ -105,6 +132,7 @@ php -S localhost:8000
 |------|------|------|------|
 | `proxyUrls` | array | 是 | 下载加速代理地址列表。当前代码仅接受 allowlist 内的 HTTPS 域名。 |
 | `marquee` | object | 否 | 首页公告跑马灯配置。 |
+| `categories` | array | 否 | 分类顺序数组，例如 `["阅读", "工具"]`。未配置时首页从资源 `category` 字段动态汇总。 |
 | `resources` | array | 是 | GitHub 资源列表。 |
 
 ### marquee 字段
@@ -124,9 +152,10 @@ php -S localhost:8000
 | `owner` | string | 是 | GitHub 仓库拥有者。 |
 | `repo` | string | 是 | GitHub 仓库名称。 |
 | `description` | string | 是 | 资源简介。 |
+| `category` | string | 否 | 资源分类，例如 `阅读`、`工具`。首页按分类分组展示。 |
 | `platforms` | array | 否 | 平台标签，例如 `Android`、`Windows`、`macOS`、`Linux`。首页筛选优先使用该字段。 |
 | `usePrerelease` | boolean | 是 | 是否包含 prerelease 版本。 |
-| `recommended` | boolean | 否 | 是否推荐，推荐资源会置顶展示。 |
+| `recommended` | boolean | 否 | 是否推荐，推荐资源会在所属分类内置顶展示。 |
 | `sourceType` | string | 否 | 数据源类型：`release`（默认）使用 Release API；`tag` 使用 Tag API（适用于编译资源在 Tag 中的项目）。 |
 
 ### 代理地址限制
@@ -179,11 +208,26 @@ cp data/config.local.json.example data/config.local.json
 
 ## 使用说明
 
-1. 首页展示全部资源卡片，支持按平台筛选。
-2. 推荐资源会优先展示。
+### 浏览资源
+
+1. 首页按分类分组展示资源卡片，支持按分类和平台筛选。
+2. 推荐资源在所属分类内优先展示。
 3. 资源卡片展示名称、简介、平台、最近更新时间和详情入口。
 4. 详情页展示仓库信息、最近 release 和资源文件列表。
 5. 点击加速下载按钮后，系统会用配置的代理地址拼接 GitHub 文件地址。
+
+### 自定义下载
+
+首页提供自定义下载入口，支持临时查看任意 GitHub 仓库的 release：
+
+1. 在首页自定义下载框中输入仓库标识，支持以下格式：
+   - `owner/repo`（如 `gedoor/legado`）
+   - `https://github.com/owner/repo`
+   - `http://github.com/owner/repo`
+   - `github.com/owner/repo`
+2. 点击"获取下载"按钮或按回车键提交。
+3. 系统会打开侧栏展示该仓库的 release 信息和加速下载按钮。
+4. 自定义仓库默认包含预发布版本，不会保存到配置文件。
 
 ## 平台识别
 
@@ -231,24 +275,24 @@ cp data/config.local.json.example data/config.local.json
 
 ```text
 github-accel-downloader/
-├── index.php                     # 主入口、路由、安全响应头、首页和详情页数据组装
+├── index.php                     # 主入口、路由、安全响应头、首页和详情页数据组装；支持自定义仓库临时路由
 ├── includes/
-│   ├── config.php                # 配置加载、代理 URL 校验、跑马灯配置清洗
+│   ├── config.php                # 配置加载、代理 URL 校验、跑马灯/分类配置清洗（sanitizeCategories）
 │   ├── functions.php             # GitHub API、平台识别、release 规范化、格式化函数
 │   └── cache.php                 # 文件缓存、并发 API 请求、平台和更新时间批量获取
 ├── data/
-│   ├── resources.json            # 资源、代理和跑马灯配置
+│   ├── resources.json            # 资源、代理、分类和跑马灯配置（含顶层 categories 和资源项 category 字段）
 │   ├── config.local.json.example # 本地敏感配置模板
 │   ├── config.local.json         # 本地敏感配置，生产环境自行创建
 │   ├── .htaccess                 # Apache data 目录访问保护
 │   └── cache/                    # 运行时缓存目录
 ├── templates/
-│   ├── home.php                  # 首页模板、跑马灯、资源卡片、搜索和平台筛选
+│   ├── home.php                  # 首页模板：分类分组卡片、分类/平台筛选、自定义下载入口、跑马灯
 │   ├── detail-fragment.php       # 详情内容片段，侧栏异步加载与独立页面共用
 │   └── resource.php              # 独立详情页，无 JS 时的回退入口
 ├── assets/
-│   ├── material-theme.css        # 主题样式，含设计令牌与明暗两套色板
-│   ├── app.js                    # 详情侧栏、搜索筛选、URL 历史同步
+│   ├── material-theme.css        # 主题样式，含设计令牌、明暗两套色板、分类分组与自定义下载样式
+│   ├── app.js                    # 侧栏、搜索、分类/平台筛选、URL 历史同步、自定义下载提交逻辑
 │   ├── theme-switcher.js         # 明暗主题切换
 │   ├── favicon.ico               # 浏览器标签页图标，含 16/32/48 三种尺寸
 │   ├── logo.png                  # 顶栏站点标识
@@ -324,6 +368,16 @@ curl -s -o /dev/null -w "%{http_code}" --max-time 15 "http://localhost:8000/?res
 - 本项目仅聚合公开 GitHub Release 下载入口，应用版权归原作者所有。
 
 ## 更新日志
+
+### v1.11.0 - 仓库分类与自定义下载
+
+- 新增仓库分类展示：首页资源卡片按分类（阅读/工具）分组渲染，管理员通过 `resources.json` 的顶层 `categories` 字段和资源项 `category` 字段自由配置。
+- 新增分类筛选按钮组：支持分类 + 平台 + 搜索三重筛选叠加，分组标题根据筛选结果自动显隐。
+- 新增自定义仓库下载入口：首页顶部增加输入框，支持 `owner/repo`、`https://github.com/owner/repo` 等多种格式，自动包含预发布版本。
+- 自定义仓库复用现有侧栏加载流程：异步获取 release 列表、渲染加速下载按钮、同步浏览器历史，与预配置资源体验一致。
+- 增强输入校验：owner/repo 字符集限定 `[A-Za-z0-9._-]`，单段长度 1-100 字符，总长度 500 字符以内，非法输入展示格式错误提示 2.5 秒自动清除。
+- 配置数据模型扩展：`sanitizeCategories()` 清洗分类数组（限长 40 字符、去重保序、最多 20 项），未配置 `categories` 时从资源 `category` 字段动态汇总。
+- 更新 README 文档：补充 `categories` 与 `category` 字段说明、自定义下载使用指南、配置示例。
 
 ### v1.10.0 - 单页交互重构与视觉打磨
 

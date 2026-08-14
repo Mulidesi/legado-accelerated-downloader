@@ -1534,3 +1534,143 @@ body.sheet-open {
         transition: none;
     }
 }
+
+/* ===================== 分类分组 ===================== */
+.category-group {
+    margin-bottom: 2rem;
+}
+
+.category-group-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin: 0 0 1rem 0;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+    letter-spacing: 0.01em;
+}
+
+.category-group-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.5rem;
+    height: 1.25rem;
+    padding: 0 0.4rem;
+    background: var(--accent-soft);
+    color: var(--accent);
+    border-radius: var(--radius-pill);
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1;
+}
+
+.category-group[hidden] {
+    display: none;
+}
+
+/* ===================== 自定义下载入口 ===================== */
+.custom-download {
+    margin-top: 1.25rem;
+    margin-bottom: 0;
+}
+
+.custom-download-inner {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 1rem 1.25rem;
+}
+
+.custom-download-label {
+    display: block;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 0.6rem;
+    letter-spacing: 0.01em;
+}
+
+.custom-download-row {
+    display: flex;
+    gap: 0.625rem;
+    align-items: stretch;
+}
+
+.custom-repo-input {
+    flex: 1;
+    min-width: 0;
+    height: var(--tap);
+    padding: 0 0.875rem;
+    background: var(--surface-2);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 0.875rem;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    outline: none;
+}
+
+.custom-repo-input::placeholder {
+    color: var(--text-muted);
+}
+
+.custom-repo-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+    background: var(--surface);
+}
+
+.custom-repo-submit {
+    flex-shrink: 0;
+    height: var(--tap);
+    padding: 0 1.125rem;
+    background: var(--accent);
+    color: var(--accent-contrast);
+    border: none;
+    border-radius: var(--radius-sm);
+    font-family: var(--font);
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.15s, transform 0.1s;
+    white-space: nowrap;
+}
+
+.custom-repo-submit:hover {
+    background: var(--accent-hover);
+}
+
+.custom-repo-submit:active {
+    transform: scale(0.97);
+}
+
+.custom-repo-submit:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+.custom-repo-error {
+    margin-top: 0.4rem;
+    font-size: 0.8125rem;
+    color: var(--danger);
+    min-height: 0;
+}
+
+.custom-repo-error:not(:empty) {
+    min-height: 1.25rem;
+}
+
+@media (max-width: 480px) {
+    .custom-download-row {
+        flex-direction: column;
+    }
+
+    .custom-repo-submit {
+        width: 100%;
+    }
+}

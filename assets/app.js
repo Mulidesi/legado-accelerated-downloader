@@ -12,7 +12,9 @@
     }
 
     var cards = Array.prototype.slice.call(grid.querySelectorAll('.card'));
-    var filterBtns = Array.prototype.slice.call(document.querySelectorAll('.filter-btn'));
+    var filterBtns = Array.prototype.slice.call(document.querySelectorAll('.filter-btn:not(.category-filter)'));
+    var categoryFilterBtns = Array.prototype.slice.call(document.querySelectorAll('.filter-btn.category-filter'));
+    var categoryGroups = Array.prototype.slice.call(document.querySelectorAll('.category-group'));
     var searchInput = document.getElementById('search-input');
     var searchClear = document.getElementById('search-clear');
     var emptyState = document.getElementById('empty-state');
@@ -35,6 +37,7 @@
         return {
             el: el,
             platforms: platforms,
+            category: el.dataset.category || '未分类',
             search: el.dataset.search || ''
         };
     });
@@ -42,19 +45,30 @@
     /* ---------- 筛选与搜索 ---------- */
 
     var currentPlatform = 'all';
+    var currentCategory = 'all';
     var currentQuery = '';
 
     function applyFilter() {
         var visible = 0;
+        var visibleByGroup = {};
 
         items.forEach(function (item) {
             var matchPlatform = currentPlatform === 'all' || item.platforms.indexOf(currentPlatform) !== -1;
+            var matchCategory = currentCategory === 'all' || item.category === currentCategory;
             var matchQuery = currentQuery === '' || item.search.indexOf(currentQuery) !== -1;
-            var match = matchPlatform && matchQuery;
+            var match = matchPlatform && matchCategory && matchQuery;
             item.el.hidden = !match;
             if (match) {
                 visible++;
+                visibleByGroup[item.category] = (visibleByGroup[item.category] || 0) + 1;
             }
+        });
+
+        // 分组可见性管理
+        categoryGroups.forEach(function (group) {
+            var groupCategory = group.dataset.categoryGroup || '';
+            var hasVisible = visibleByGroup[groupCategory] > 0;
+            group.hidden = !hasVisible;
         });
 
         if (emptyState) {
@@ -79,6 +93,19 @@
             btn.classList.add('active');
             btn.setAttribute('aria-pressed', 'true');
             currentPlatform = btn.dataset.platform;
+            applyFilter();
+        });
+    });
+
+    categoryFilterBtns.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            categoryFilterBtns.forEach(function (b) {
+                b.classList.remove('active');
+                b.setAttribute('aria-pressed', 'false');
+            });
+            btn.classList.add('active');
+            btn.setAttribute('aria-pressed', 'true');
+            currentCategory = btn.dataset.category;
             applyFilter();
         });
     });
@@ -319,4 +346,51 @@
             openSheet(owner, repo, match.dataset.name, false);
         }
     })();
+
+    /* ---------- 自定义下载 ---------- */
+
+    var customRepoInput = document.getElementById('custom-repo-input');
+    var customRepoSubmit = document.getElementById('custom-repo-submit');
+    var customRepoError = document.getElementById('custom-repo-error');
+
+    if (customRepoInput && customRepoSubmit && customRepoError) {
+        function parseRepoInput(input) {
+            var trimmed = input.trim();
+            var match = trimmed.match(/^(?:https?:\/\/github\.com\/)?([A-Za-z0-9._-]+)\/([A-Za-z0-9._-]+?)(?:\.git)?$/);
+            if (match) {
+                return { owner: match[1], repo: match[2] };
+            }
+            return null;
+        }
+
+        function submitCustomRepo() {
+            var input = customRepoInput.value;
+            var parsed = parseRepoInput(input);
+
+            if (!parsed) {
+                customRepoError.textContent = '格式错误，请输入 owner/repo 或完整 GitHub URL';
+                customRepoInput.focus();
+                return;
+            }
+
+            customRepoError.textContent = '';
+            customRepoInput.value = '';
+            openSheet(parsed.owner, parsed.repo, parsed.owner + '/' + parsed.repo, true);
+        }
+
+        customRepoSubmit.addEventListener('click', submitCustomRepo);
+
+        customRepoInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                submitCustomRepo();
+            }
+        });
+
+        customRepoInput.addEventListener('input', function () {
+            if (customRepoError.textContent !== '') {
+                customRepoError.textContent = '';
+            }
+        });
+    }
 })();
