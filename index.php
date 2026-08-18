@@ -9,28 +9,18 @@
  * - 添加 .gitignore 防止敏感文件提交
  */
 
-// 区分开发和生产环境
+// 区分开发和生产环境。生产主机已关闭 log_errors，保留主机日志策略，
+// 仅控制页面是否显示错误，避免通过 ini_set 改写虚拟主机配置。
 if (getenv('APP_ENV') === 'development') {
     error_reporting(E_ALL);
     ini_set('display_errors', '1');
 } else {
     error_reporting(E_ALL);
     ini_set('display_errors', '0');
-    ini_set('log_errors', '1');
-
-    // 仅在日志目录确实可写时接管 error_log；否则保留主机默认日志，
-    // 避免共享主机上目录不可写导致启动错误彻底无处可查。
-    $logDir = __DIR__ . '/data/cache';
-    if (!is_dir($logDir)) {
-        @mkdir($logDir, 0755, true);
-    }
-    if (is_dir($logDir) && is_writable($logDir)) {
-        ini_set('error_log', $logDir . '/php_errors.log');
-    }
-    unset($logDir);
 }
 
-date_default_timezone_set('Asia/Shanghai');
+// 使用主机 php.ini 中的 date.timezone（当前部署环境为 America/New_York）。
+// 未配置时 PHP 会回退到 UTC，避免项目覆盖主机时区。
 
 // 生成 CSP nonce
 $cspNonce = base64_encode(random_bytes(16));
@@ -89,10 +79,18 @@ if ($path === '/health') {
     header('Content-Type: application/json; charset=utf-8');
     header('Cache-Control: no-store');
 
+    // 站点在无出站网络时仍能用静态快照完整渲染，
+    // 因此健康判定只覆盖真正影响可用性的条件。
     $checks = array(
         'cache_writable' => CACHE_AVAILABLE,
         'resources_loaded' => count($resources) > 0,
+    );
+
+    // 受限虚拟主机排查用：出站能力仅供诊断，不影响健康判定
+    $diagnostics = array(
         'curl_available' => function_exists('curl_init'),
+        'http_transport' => githubHttpTransport(),
+        'multi_curl' => supports_multi_curl(),
     );
 
     $healthy = !in_array(false, $checks, true);
@@ -101,6 +99,7 @@ if ($path === '/health') {
     echo json_encode(array(
         'status' => $healthy ? 'ok' : 'degraded',
         'checks' => $checks,
+        'diagnostics' => $diagnostics,
         'timestamp' => gmdate('c'),
     ), JSON_UNESCAPED_UNICODE);
     exit;
@@ -186,9 +185,12 @@ if (isset($_GET['owner']) && isset($_GET['repo'])) {
 
 $marquee = isset($config['marquee']) && is_array($config['marquee']) ? $config['marquee'] : array();
 
-// GitHub 统计属于增强信息。共享主机缺少 cURL、禁止出站网络或 API
-// 暂时不可用时，首页继续使用 resources.json 中的基础数据正常渲染。
-if (!empty($resources) && function_exists('curl_init')) {
+// resources.json 中的静态快照是卡片渲染基线：受限虚拟主机缺少 cURL、
+// 禁止出站网络或 GitHub API 限流时，Star、Fork 与 Release 时间仍可展示。
+$resources = normalizeResourceCardData($resources);
+
+// GitHub 数据属于增强信息，仅在主机确实具备出站能力时尝试刷新。
+if (!empty($resources) && githubHttpTransport() !== 'none') {
     try {
         // 批量获取 Star/Fork/更新时间，并注入各资源卡片
         $repoList = array();
@@ -211,25 +213,38 @@ if (!empty($resources) && function_exists('curl_init')) {
             $key = isset($resource['owner'], $resource['repo'])
                 ? $resource['owner'] . '/' . $resource['repo']
                 : '';
-            if ($key !== '' && isset($stats[$key])) {
-                $resources[$index]['stats'] = $stats[$key];
+            if ($key === '' || !isset($stats[$key])) {
+                continue;
             }
+            $resources[$index]['stats'] = mergeRemoteRepoStats(
+                $resources[$index]['stats'],
+                $stats[$key]
+            );
         }
 
         // 原有平台识别和更新时间查询；任一远程请求失败都由下方 catch 降级
         $platforms = getResourcePlatformsBatch($resources);
         $updatedAt = getResourceUpdatedAtBatch($resources);
 
+        // 同一批 Release API 响应会命中缓存，单独保存最新 Release 发布时间。
+        $releaseUpdatedAt = getResourceLatestReleaseAtBatch($resources);
+
         foreach ($resources as $index => $resource) {
             if (isset($platforms[$index]) && !empty($platforms[$index])) {
                 $resources[$index]['platforms'] = $platforms[$index];
-            } elseif (!isset($resources[$index]['platforms'])) {
-                $resources[$index]['platforms'] = array();
             }
-            $resources[$index]['updatedAt'] = isset($updatedAt[$index]) ? $updatedAt[$index] : null;
+            if (isset($updatedAt[$index]) && isValidIsoDate($updatedAt[$index])) {
+                $resources[$index]['updatedAt'] = $updatedAt[$index];
+            }
+            if (isset($releaseUpdatedAt[$index]) && isValidIsoDate($releaseUpdatedAt[$index])) {
+                $resources[$index]['releaseUpdatedAt'] = $releaseUpdatedAt[$index];
+            }
         }
     } catch (Throwable $error) {
-        error_log('首页 GitHub 增强信息加载失败，已降级为本地配置: ' . $error->getMessage());
+        error_log('首页 GitHub 增强信息加载失败，已降级为本地快照: ' . $error->getMessage());
+    } catch (Exception $error) {
+        // PHP 5.x/7.0 之前的扩展错误不实现 Throwable，保留兼容分支
+        error_log('首页 GitHub 增强信息加载失败，已降级为本地快照: ' . $error->getMessage());
     }
 }
 

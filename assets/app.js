@@ -18,7 +18,6 @@
     var searchInput = document.getElementById('search-input');
     var searchClear = document.getElementById('search-clear');
     var emptyState = document.getElementById('empty-state');
-    var resultCount = document.getElementById('result-count');
     var announcer = document.getElementById('announcer');
 
     var sheet = document.getElementById('sheet');
@@ -94,9 +93,6 @@
 
         if (emptyState) {
             emptyState.hidden = visible !== 0;
-        }
-        if (resultCount) {
-            resultCount.textContent = visible + ' 个资源';
         }
         if (announcer) {
             announcer.textContent = visible === 0

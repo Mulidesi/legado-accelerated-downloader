@@ -189,8 +189,6 @@
                     <?php endforeach; ?>
                 </div>
             <?php endif; ?>
-
-            <span class="result-count" id="result-count"><?= $totalCount ?> 个资源</span>
         </div>
     </div>
 
@@ -251,6 +249,30 @@
                             </div>
                         </div>
 
+                        <div class="card-subline">
+                            <a class="card-repo-link" href="<?= h('https://github.com/' . $resource['owner'] . '/' . $resource['repo']) ?>" target="_blank" rel="noopener noreferrer" aria-label="打开 GitHub 仓库 <?= h($resource['owner'] . '/' . $resource['repo']) ?>">
+                                <img src="assets/github-icon.png" alt="" width="14" height="14" loading="lazy">
+                                <span><?= h($resource['owner'] . '/' . $resource['repo']) ?></span>
+                            </a>
+                            <?php if (isset($resource['stats']) && is_array($resource['stats'])
+                                && isset($resource['stats']['stars'], $resource['stats']['forks'])
+                                && $resource['stats']['stars'] !== null && $resource['stats']['forks'] !== null): ?>
+                                <?php $cardStats = $resource['stats']; ?>
+                                <span class="card-stat" title="<?= $cardStats['stars'] ?> Stars">
+                                        <svg class="card-stat-icon" xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                                            <path d="M3.612 15.443c-.386.198-.824-.149-.746-.592l.83-4.73L.173 6.765c-.329-.314-.158-.888.283-.95l4.898-.696L7.538.792c.197-.39.73-.39.927 0l2.184 4.327 4.898.696c.441.062.612.636.282.95l-3.522 3.356.83 4.73c.078.443-.36.79-.746.592L8 13.187l-4.389 2.256z"/>
+                                        </svg>
+                                        <?= h(number_format($cardStats['stars'])) ?>
+                                    </span>
+                                    <span class="card-stat" title="<?= $cardStats['forks'] ?> Forks">
+                                        <svg class="card-stat-icon" xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                                            <path d="M5 3.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0zm0 2.122a2.25 2.25 0 1 0-1.5 0v.878A2.25 2.25 0 0 0 5.75 8.5h1.5v2.128a2.251 2.251 0 1 0 1.5 0V8.5h1.5a2.25 2.25 0 0 0 2.25-2.25v-.878a2.25 2.25 0 1 0-1.5 0v.878a.75.75 0 0 1-.75.75h-4.5A.75.75 0 0 1 5 6.25v-.878zm3.75 7.378a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0zm3-8.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5z"/>
+                                        </svg>
+                                        <?= h(number_format($cardStats['forks'])) ?>
+                                    </span>
+                            <?php endif; ?>
+                        </div>
+
                         <?php if (trim($resource['description'] ?? '') !== ''): ?>
                             <p class="card-desc"><?= h($resource['description']) ?></p>
                         <?php endif; ?>
@@ -268,32 +290,19 @@
                         <div class="card-spacer"></div>
 
                         <div class="card-foot">
-                            <span class="card-repo">
-                                <img src="assets/github-icon.png" alt="" width="14" height="14" loading="lazy">
-                                <span class="card-repo-text"><?= h($resource['owner'] . '/' . $resource['repo']) ?></span>
-                            </span>
                             <div class="card-meta">
-                                <?php if (isset($resource['stats'])): ?>
-                                    <?php $cardStats = $resource['stats']; ?>
-                                    <?php if ($cardStats['stars'] !== null): ?>
-                                        <span class="card-stat" title="<?= $cardStats['stars'] ?> Stars">
-                                            <svg class="card-stat-icon" xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
-                                                <path d="M3.612 15.443c-.386.198-.824-.149-.746-.592l.83-4.73L.173 6.765c-.329-.314-.158-.888.283-.95l4.898-.696L7.538.792c.197-.39.73-.39.927 0l2.184 4.327 4.898.696c.441.062.612.636.282.95l-3.522 3.356.83 4.73c.078.443-.36.79-.746.592L8 13.187l-4.389 2.256z"/>
-                                            </svg>
-                                            <?= h(number_format($cardStats['stars'])) ?>
-                                        </span>
-                                        <span class="card-stat" title="<?= $cardStats['forks'] ?> Forks">
-                                            <svg class="card-stat-icon" xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
-                                                <path d="M5 3.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0zm0 2.122a2.25 2.25 0 1 0-1.5 0v.878A2.25 2.25 0 0 0 5.75 8.5h1.5v2.128a2.251 2.251 0 1 0 1.5 0V8.5h1.5a2.25 2.25 0 0 0 2.25-2.25v-.878a2.25 2.25 0 1 0-1.5 0v.878a.75.75 0 0 1-.75.75h-4.5A.75.75 0 0 1 5 6.25v-.878zm3.75 7.378a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0zm3-8.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5z"/>
-                                            </svg>
-                                            <?= h(number_format($cardStats['forks'])) ?>
-                                        </span>
-                                    <?php endif; ?>
-                                    <?php if (!empty($cardStats['stale'])): ?>
-                                        <span class="card-stale" title="超过 30 天未更新">长期未更新</span>
-                                    <?php endif; ?>
-                                <?php elseif (!empty($resource['updatedAt'])): ?>
-                                    <span class="card-date"><?= h(formatDate($resource['updatedAt'])) ?></span>
+                                <?php if (isset($resource['stats']) && !empty($resource['stats']['stale'])): ?>
+                                    <span class="card-stale" title="超过 30 天未更新">长期未更新</span>
+                                <?php endif; ?>
+
+                                <?php if (!empty($resource['releaseUpdatedAt'])): ?>
+                                    <span class="card-release-date" title="最新 Release 发布时间：<?= h(formatDate($resource['releaseUpdatedAt'])) ?>">
+                                        <svg class="card-release-icon" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                                            <path d="M8 3.5a.75.75 0 0 1 .75.75v3.44l2.03 1.17a.75.75 0 0 1-.75 1.3l-2.4-1.38A.75.75 0 0 1 7.25 8V4.25A.75.75 0 0 1 8 3.5z"/>
+                                            <path fill-rule="evenodd" d="M8 1.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13zM3 8a5 5 0 1 1 10 0A5 5 0 0 1 3 8z"/>
+                                        </svg>
+                                        <span>Release <?= h(formatDate($resource['releaseUpdatedAt'])) ?></span>
+                                    </span>
                                 <?php endif; ?>
                             </div>
                         </div>

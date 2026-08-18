@@ -69,7 +69,9 @@ function file_cache_set($key, $value, $ttl = 3600) {
     $written = @file_put_contents($tempFile, json_encode($data), LOCK_EX);
 
     if ($written !== false) {
-        @chmod($tempFile, 0600); // 仅所有者可读写
+        if (function_exists('chmod')) {
+            @chmod($tempFile, 0600); // 仅所有者可读写
+        }
 
         // 必须确认 rename 成功再返回 true：限流计数依赖写入结果，
         // 误报成功会让调用方以为计数已持久化。
@@ -89,7 +91,9 @@ function file_cache_set($key, $value, $ttl = 3600) {
  * 检查是否支持并发请求
  */
 function supports_multi_curl() {
-    return function_exists('curl_multi_init') && function_exists('curl_multi_exec');
+    return function_exists('curl_multi_init') && function_exists('curl_multi_exec')
+        && function_exists('curl_multi_add_handle') && function_exists('curl_multi_getcontent')
+        && function_exists('curl_multi_remove_handle') && function_exists('curl_multi_close');
 }
 
 /**
@@ -119,7 +123,7 @@ function github_api_multi_request($urls, $timeout = 15, $cacheTtl = API_CACHE_TT
     }
 
     // 如果不支持并发，降级为顺序请求
-    if (!supports_multi_curl()) {
+    if (!supports_multi_curl() || !function_exists('curl_init')) {
         foreach ($urls_to_fetch as $key => $url) {
             $results[$key] = github_api_single_request($url, $timeout, $cacheTtl);
         }
@@ -216,14 +220,10 @@ function github_api_single_request($url, $timeout = 15, $cacheTtl = API_CACHE_TT
         return $cached;
     }
 
-    $ch = _create_curl_handle($url, $timeout, $includeToken);
-    if ($ch === false) {
-        return null;
-    }
-
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
+    // cURL 不可用时由 githubHttpGet() 退回 stream 包装器
+    $result = githubHttpGet($url, $timeout, $includeToken);
+    $response = $result['body'];
+    $httpCode = $result['status'];
 
     if ($httpCode === 401 && $includeToken && getGitHubToken() !== '') {
         return github_api_single_request($url, $timeout, $cacheTtl, false);
@@ -439,6 +439,24 @@ function getResourceUpdatedAtBatch($resources) {
     }
 
     return $resourceMap;
+}
+
+/**
+ * 批量获取资源最新 Release 发布时间
+ *
+ * 与 getResourceUpdatedAtBatch() 分开保存，避免配置中的 updatedAt
+ * 或仓库更新时间覆盖用户需要展示的最新 Release 时间。
+ */
+function getResourceLatestReleaseAtBatch($resources) {
+    $releaseResources = array();
+
+    foreach ($resources as $index => $resource) {
+        // 强制走 Release/Tag 数据源，不使用资源配置里的 updatedAt 覆盖值。
+        unset($resource['updatedAt']);
+        $releaseResources[$index] = $resource;
+    }
+
+    return getResourceUpdatedAtBatch($releaseResources);
 }
 
 /**

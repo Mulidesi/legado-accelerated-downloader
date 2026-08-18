@@ -2,7 +2,7 @@
 
 基于 PHP 的 GitHub Release 聚合下载站点，用于集中展示 Legado 相关资源，并通过配置的 HTTPS 加速代理生成下载入口。项目采用单入口 PHP 架构，适合部署在支持 PHP 和 cURL 的虚拟主机、Apache、Nginx 或轻量 PHP 运行环境中。
 
-[![Version](https://img.shields.io/badge/version-1.11.0-blue.svg)](https://github.com)
+[![Version](https://img.shields.io/badge/version-1.13.0-blue.svg)](https://github.com)
 [![PHP](https://img.shields.io/badge/PHP-7.4+-blue.svg)](https://php.net)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
@@ -31,6 +31,10 @@
 - 筛选按钮无障碍适配（ARIA），支持屏幕阅读器。
 - 零内联样式，全部 CSS 语义化类管理。
 - 内置安全响应头、CSP、TLS 校验、外链隔离和敏感目录访问保护。
+- **虚拟主机全面兼容**：`curl_multi_exec` 禁用时自动降级顺序请求，`chmod` 禁用时跳过权限设置，错误日志跟随主机策略。
+- **静态快照兜底**：`resources.json` 可配置 Stars/Forks/Release 时间快照，网络受限时首页依然完整展示。
+- **PWA 离线缓存**：支持离线访问和静态资源缓存，移动端体验更佳。
+- **下载链接一键复制**：点击即复制加速下载链接，支持非安全上下文回退。
 
 ## 环境要求
 
@@ -275,15 +279,16 @@ cp data/config.local.json.example data/config.local.json
 
 ```text
 github-accel-downloader/
-├── index.php                     # 主入口、路由、安全响应头、首页和详情页数据组装；支持自定义仓库临时路由
+├── index.php                     # 主入口、路由、安全响应头、首页和详情页数据组装；支持自定义仓库临时路由、/health 诊断端点
 ├── includes/
 │   ├── config.php                # 配置加载、代理 URL 校验、跑马灯/分类配置清洗（sanitizeCategories）
-│   ├── functions.php             # GitHub API、平台识别、release 规范化、格式化函数
-│   └── cache.php                 # 文件缓存、并发 API 请求、平台和更新时间批量获取
+│   ├── functions.php             # GitHub API、平台识别、release 规范化、格式化函数、HTTP 传输探测
+│   ├── cache.php                 # 文件缓存、并发 API 请求、平台和更新时间批量获取、chmod 存在性检测
+│   └── batch-stats.php           # 批量预取仓库 Star/Fork 与更新时间，全部失败时跳过写入避免空缓存阻塞
 ├── data/
-│   ├── resources.json            # 资源、代理、分类和跑马灯配置（含顶层 categories 和资源项 category 字段）
+│   ├── resources.json            # 资源、代理、分类和跑马灯配置（含静态快照兜底字段）
 │   ├── config.local.json.example # 本地敏感配置模板
-│   ├── config.local.json         # 本地敏感配置，生产环境自行创建
+│   ├── config.local.json         # 本地敏感配置，生产环境自行创建（已被 .gitignore 排除）
 │   ├── .htaccess                 # Apache data 目录访问保护
 │   └── cache/                    # 运行时缓存目录
 ├── templates/
@@ -294,9 +299,18 @@ github-accel-downloader/
 │   ├── material-theme.css        # 主题样式，含设计令牌、明暗两套色板、分类分组与自定义下载样式
 │   ├── app.js                    # 侧栏、搜索、分类/平台筛选、URL 历史同步、自定义下载提交逻辑
 │   ├── theme-switcher.js         # 明暗主题切换
+│   ├── copy-link.js              # 下载链接一键复制，事件委托适配异步渲染
+│   ├── pwa.js                    # PWA 注册与更新提示
 │   ├── favicon.ico               # 浏览器标签页图标，含 16/32/48 三种尺寸
+│   ├── apple-touch-icon.png      # iOS 主屏图标
+│   ├── icon-192.png              # PWA 192px 图标
+│   ├── icon-512.png              # PWA 512px 图标
+│   ├── icon-maskable-512.png     # PWA maskable 自适应图标
 │   ├── logo.png                  # 顶栏站点标识
+│   ├── logo@2x.png               # 高分屏站点标识
 │   └── github-icon.png           # GitHub 图标
+├── manifest.webmanifest          # PWA 应用清单
+├── sw.js                         # Service Worker：静态资源 cache-first，页面 network-first
 ├── .htaccess                     # Apache 访问控制和安全头兜底
 ├── .gitignore                    # 本地配置、缓存和日志忽略规则
 ├── SECURITY_MIGRATION.md         # Token 安全迁移指南
@@ -366,8 +380,56 @@ curl -s -o /dev/null -w "%{http_code}" --max-time 15 "http://localhost:8000/?res
 - `data/cache/` 是运行时目录，适合加入部署持久化目录或保持 Web 用户可写。
 - `data/config.local.json`、`data/cache/` 和日志文件属于本地运行数据，避免提交到代码仓库。
 - 本项目仅聚合公开 GitHub Release 下载入口，应用版权归原作者所有。
+- 虚拟主机禁用 `curl_multi_exec` 时，系统自动降级为顺序请求；禁用 `chmod` 时跳过权限设置，均不影响功能。
+- 虚拟主机错误日志策略由主机 `php.ini` 控制，项目不再强制覆盖 `log_errors` 与 `error_log`。
+- 时区跟随主机 `php.ini` 配置；详情页时间通过 `formatDate()` 内部转换为北京时间展示。
+
+## 静态快照配置
+
+网络受限或 GitHub API 不可达时，可在 `resources.json` 的资源项中配置静态快照，首页据此渲染 Stars、Forks 与最近更新时间：
+
+```json
+{
+    "name": "阅读 Archive",
+    "owner": "Rimchars",
+    "repo": "legado",
+    "category": "阅读",
+    "platforms": ["Android"],
+    "snapshot": {
+        "stars": 135,
+        "forks": 12,
+        "pushedAt": "2026-08-17T09:00:00Z"
+    }
+}
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `snapshot.stars` | integer | 否 | 静态 Stars 数值，API 不可用时兜底展示。 |
+| `snapshot.forks` | integer | 否 | 静态 Forks 数值。 |
+| `snapshot.pushedAt` | string | 否 | ISO 8601 格式的最近更新时间。 |
 
 ## 更新日志
+
+### v1.13.0 - 虚拟主机环境适配与静态快照
+
+**虚拟主机兼容性修复**
+
+- 移除强制时区覆盖：删除 `date_default_timezone_set('Asia/Shanghai')`，改为跟随主机 `php.ini` 时区配置；`formatDate()` 内部转换到北京时间输出，避免虚拟主机配置冲突。
+- 移除强制错误日志接管：删除 `ini_set('log_errors')` 与 `ini_set('error_log')`，错误日志策略完全交由主机控制，解决主机 `log_errors=off` 下的配置冲突。
+- 修复 `chmod` 禁用兼容：`includes/cache.php` 增加 `function_exists('chmod')` 检测，PHP 8.3 ZTS 等禁用 `chmod` 的环境不再触发致命错误。
+- 修复空缓存阻塞：`includes/batch-stats.php` 仅在至少一个仓库成功时写入缓存，全部失败时跳过，避免 null 数据持久化阻塞后续刷新。
+- `curl_multi_exec` 禁用降级：共享主机禁用该函数时自动走 `sequential_fetch()` 顺序请求路径，功能不受影响。
+
+**数据与展示增强**
+
+- 资源配置升级：`data/resources.json` 扩充至 21 个资源（阅读/影视/音乐/工具），其中 10 个资源内置静态快照，API 不可达时首页仍可完整渲染。
+- 新增静态快照兜底字段：资源项可配置 `snapshot.stars`、`snapshot.forks`、`snapshot.pushedAt`，配合运行时 API 数据使用。
+- 修复 Release 时间图标布局：SVG 时钟图标使用 `inline-flex` + `white-space: nowrap` 绑定文本，移动端不再拆行。
+
+**构建与发布**
+
+- 部署包生成流程更新：排除 Git 元数据、真实配置、缓存和日志，仅打包站点文件。
 
 ### v1.12.0 - 交互增强、PWA 支持与共享主机兼容性修复
 

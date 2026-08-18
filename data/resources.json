@@ -1,20 +1,23 @@
 {
     "proxyUrls": [
-        "https://ghproxy.net/",
-        "https://ghproxy.monkeyray.net/",
         "https://gproxy.mlds.dpdns.org/"
     ],
-    "categories": ["阅读", "工具"],
+    "categories": [
+        "阅读",
+        "影视",
+        "音乐",
+        "工具"
+    ],
     "marquee": {
         "enabled": true,
         "items": [
             {
-                "text": "欢迎访问 Legado 资源加速下载站，点击查看开源阅读项目 Legado。",
-                "url": "https://github.com/gedoor/legado"
+                "text": "木里阅读（公益版）书源发布站点，欢迎大家使用！",
+                "url": "https://fb-free.moolides.vip/"
             },
             {
-                "text": "本站仅聚合公开 GitHub Release 下载入口，请以原作者项目说明为准。",
-                "url": "https://github.com"
+                "text": "Legado 资源加速下载站点 - 基于 PHP 的 GitHub Release 加速下载",
+                "url": "https://github.com/Mulidesi/legado-accelerated-downloader"
             }
         ]
     },
@@ -25,28 +28,67 @@
             "repo": "legado",
             "category": "阅读",
             "description": "阅读 Archive 继承自 Lyc 维护的 Legado 分支，并延续 Legado 的开源阅读体验，在其基础上继续增强界面、AI、EPUB、漫画、视频和主题能力。",
-            "platforms": ["Android"],
+            "platforms": [
+                "Android"
+            ],
+            "usePrerelease": true,
+            "recommended": true,
+            "stats": {
+                "stars": 464,
+                "forks": 23
+            },
+            "releaseUpdatedAt": "2026-07-23T05:50:04Z"
+        },
+        {
+            "name": "阅读 Max(GEd520-辞晨)",
+            "owner": "GEd520",
+            "repo": "legados",
+            "category": "阅读",
+            "description": "阅读Max继承自阅读Sigma，在其基础上新增更多实用和强大功能。",
+            "platforms": [
+                "Android"
+            ],
             "usePrerelease": true,
             "recommended": true
         },
         {
-            "name": "阅读 R",
-            "owner": "refgd",
-            "repo": "legado",
-            "category": "阅读",
-            "description": "阅读 R 继承自 Rimchars 维护的 Legado 分支，并延续 Legado 的开源阅读体验，在其基础上继续增强界面、AI、EPUB、漫画、视频和主题能力。",
-            "platforms": ["Android"],
-            "usePrerelease": true
-        },
-        {
-            "name": "阅读 Max",
+            "name": "阅读 Max(Suml-1)",
             "owner": "Suml-1",
             "repo": "Legado_Max",
             "category": "阅读",
-            "description": "阅读 Max 继承自阅读 Sigma，在其基础上新增更多功能。 1.appLegacy 版：包名 io.legado.app 与 lyc 原版相同，可覆盖更新 2.appMax 版：包名 io.legado.app.yuedu 共存包名，不会覆盖原版 3.appS 版：包名 io.legado.app.yuedu.a 另一个共存包名。",
-            "platforms": ["Android"],
+            "description": "本项目基于 lyc版 持续开发，在此基础上有更多实用和强大功能。\n1.appLegacy版：包名 io.legado.app，与原版相同，可覆盖更新\n2.appMax版：包名 io.legado.app.yuedu，共存包名，不会覆盖原版\n3.appS版：包名 io.legado.app.yuedu.a，另一个共存包名",
+            "platforms": [
+                "Android"
+            ],
             "usePrerelease": true,
-            "recommended": true
+            "recommended": true,
+            "stats": {
+                "stars": 290,
+                "forks": 18
+            },
+            "releaseUpdatedAt": "2026-08-15T16:10:20Z"
+        },
+        {
+            "name": "阅读 Max(youfengknight)",
+            "owner": "youfengknight",
+            "repo": "Legado_Max",
+            "category": "阅读",
+            "description": "阅读Max在继承原版所有功能的基础上，新增更多特色功能。",
+            "platforms": [
+                "Android"
+            ],
+            "usePrerelease": true
+        },
+        {
+            "name": "MR — 多媒体阅读器",
+            "owner": "DandanLLab",
+            "repo": "mr",
+            "category": "阅读",
+            "description": "一款基于 Flutter 的跨平台多媒体阅读器，完全兼容阅读（Legado）书源规则体系，支持小说、漫画、音频、视频与本地书。",
+            "platforms": [
+                "Android"
+            ],
+            "usePrerelease": true
         },
         {
             "name": "阅读 T",
@@ -54,8 +96,15 @@
             "repo": "legadoT",
             "category": "阅读",
             "description": "开源阅读修改版，添加基于 cron 的定时任务支持。",
-            "platforms": ["Android"],
-            "usePrerelease": true
+            "platforms": [
+                "Android"
+            ],
+            "usePrerelease": true,
+            "stats": {
+                "stars": 113,
+                "forks": 17
+            },
+            "releaseUpdatedAt": "2026-08-15T11:04:40Z"
         },
         {
             "name": "阅读 薯条",
@@ -63,25 +112,42 @@
             "repo": "legado",
             "category": "阅读",
             "description": "采用 Material Design 3 风格重新设计的开源版本",
-            "platforms": ["Android"],
-            "usePrerelease": true
+            "platforms": [
+                "Android"
+            ],
+            "usePrerelease": true,
+            "stats": {
+                "stars": 172,
+                "forks": 125
+            },
+            "releaseUpdatedAt": "2026-08-15T01:38:26Z"
         },
         {
-            "name": "阅读 Jingshiro",
+            "name": "Jingshiro阅读",
             "owner": "Jingshiro",
             "repo": "legado",
             "category": "阅读",
             "description": "基于 Luoyacheng/legado 的二改自用版，新增详细阅读记录、笔记想法、AI 助手、主题全量导出、藏书票等功能",
-            "platforms": ["Android"],
-            "usePrerelease": true
+            "platforms": [
+                "Android"
+            ],
+            "usePrerelease": true,
+            "recommended": true,
+            "stats": {
+                "stars": 112,
+                "forks": 14
+            },
+            "releaseUpdatedAt": "2026-08-07T14:35:54Z"
         },
         {
-            "name": "阅读 Tauri",
-            "owner": "LegadoTeam",
-            "repo": "Legado-Tauri-Release",
+            "name": "阅读NG",
+            "owner": "joestar817",
+            "repo": "legado_NG",
             "category": "阅读",
-            "description": "跨平台桌面阅读应用 — 基于 Tauri v2 + Vue 3 + Rust 构建",
-            "platforms": ["Windows", "macOS", "Linux"],
+            "description": "阅读NG — Next Generation Legado 基于阅读Sigma继续演进的独立阅读器分支",
+            "platforms": [
+                "Android"
+            ],
             "usePrerelease": true
         },
         {
@@ -90,9 +156,16 @@
             "repo": "legado",
             "category": "阅读",
             "description": "基于官方版本优化的第三方版本。测试版 (beta)：包名与原版相同，可覆盖更新，版本更新频繁；正式版 (plus)：新的共存包名，安装后是一个新软件，不会覆盖原版，每到一个稳定阶段进行一次更新。",
-            "platforms": ["Android"],
+            "platforms": [
+                "Android"
+            ],
             "usePrerelease": true,
-            "recommended": true
+            "recommended": true,
+            "stats": {
+                "stars": 2378,
+                "forks": 536
+            },
+            "releaseUpdatedAt": "2026-08-01T05:19:41Z"
         },
         {
             "name": "阅读 Plus",
@@ -100,8 +173,15 @@
             "repo": "legado",
             "category": "阅读",
             "description": "Sigma 的稳定版，使用的是稳定版",
-            "platforms": ["Android"],
-            "usePrerelease": true
+            "platforms": [
+                "Android"
+            ],
+            "usePrerelease": true,
+            "stats": {
+                "stars": 2378,
+                "forks": 536
+            },
+            "releaseUpdatedAt": "2026-08-01T05:19:41Z"
         },
         {
             "name": "阅读 MD3",
@@ -109,26 +189,134 @@
             "repo": "legado-with-MD3",
             "category": "阅读",
             "description": "采用 Material Design 3 风格重新设计的开源版本",
-            "platforms": ["Android"],
+            "platforms": [
+                "Android"
+            ],
+            "usePrerelease": true,
+            "stats": {
+                "stars": 5664,
+                "forks": 634
+            },
+            "releaseUpdatedAt": "2026-08-14T08:45:14Z"
+        },
+        {
+            "name": "阅读Beta / 喵公子版",
+            "owner": "LegadoTeam",
+            "repo": "legado",
+            "category": "阅读",
+            "description": "Legado 是一款免费的 Android 平台开源小说阅读器。",
+            "platforms": [
+                "Android"
+            ],
             "usePrerelease": true
-        },        
+        },
         {
             "name": "轻悦时光",
             "owner": "autobcb",
             "repo": "qysg",
             "category": "阅读",
             "description": "一款多平台可用的阅读软件，通过 webview 来运行书源以达到多平台兼容的效果。",
-            "platforms": ["Android", "iOS", "Windows"],
+            "platforms": [
+                "Android",
+                "iOS",
+                "Windows"
+            ],
+            "usePrerelease": false,
+            "stats": {
+                "stars": 446,
+                "forks": 20
+            },
+            "releaseUpdatedAt": "2026-08-08T15:31:43Z"
+        },
+        {
+            "name": "弦-书籍下载器",
+            "owner": "youshen2",
+            "repo": "Sine-NovelDownloader",
+            "category": "工具",
+            "description": "弦-书籍下载器。支持通过鲸落api下载番茄免费小说上的书籍；关键词：番茄、西红柿、fanqie、fanqienovel、tomato、tomatonovel",
+            "platforms": [
+                "Android"
+            ],
             "usePrerelease": false
-        },        
+        },
         {
             "name": "番茄小说下载器",
             "owner": "zhongbai2333",
             "repo": "Tomato-Novel-Downloader",
             "category": "工具",
             "description": "番茄小说下载器不精简版本，包括：EPUB下载支持、更好的断点续传、更好的错误管理、书本搜索、Web UI 等特性。",
-            "platforms": ["Windows", "macOS", "Linux"],
-            "usePrerelease": false
+            "platforms": [
+                "Windows",
+                "macOS",
+                "Linux"
+            ],
+            "usePrerelease": false,
+            "stats": {
+                "stars": 3484,
+                "forks": 340
+            },
+            "releaseUpdatedAt": "2026-06-27T04:20:08Z"
+        },
+        {
+            "name": "番茄小说下载器（POf-L）",
+            "owner": "POf-L",
+            "repo": "Fanqie-novel-Downloader",
+            "category": "工具",
+            "description": "基于 Rust + Tauri v2 的跨平台小说工具，提供搜索、书籍详情、在线阅读、书架管理， 以及 TXT / EPUB 下载。桌面端与移动端共用同一套前端和 Rust 后端，不依赖 Go sidecar。",
+            "platforms": [
+                "Android",
+                "iOS",
+                "Windows",
+                "macOS",
+                "Linux"
+            ],
+            "usePrerelease": false,
+            "recommended": true
+        },
+        {
+            "name": "鱼壳（fish2018/webhtv）",
+            "owner": "fish2018",
+            "repo": "webhtv",
+            "category": "影视",
+            "description": "WebHomeTV 是基于 FongMi / CatVod 生态二次开发的 Android 影音应用，保留原有点播、直播、Spider、解析、投屏、本地 HTTP 服务等能力，并重点增强了 WebHome 自定义首页、App Native SDK、网盘链接检测、站点健康排序 和 Nostr/TMDB 推荐首页。",
+            "platforms": [
+                "Android"
+            ],
+            "usePrerelease": true
+        },
+        {
+            "name": "默影视（Silent1566/webhtv）",
+            "owner": "Silent1566",
+            "repo": "webhtv",
+            "category": "影视",
+            "description": "基于鱼佬的WebHomeTV二次开发，调整了部分交互方式，支持Python和JavaScript源的TMDB海报。",
+            "platforms": [
+                "Android"
+            ],
+            "usePrerelease": true,
+            "recommended": true
+        },
+        {
+            "name": "洛雪音乐-LX Music Mobile",
+            "owner": "lyswhut",
+            "repo": "lx-music-mobile",
+            "category": "音乐",
+            "description": "一个基于 React Native 开发的音乐软件",
+            "platforms": [
+                "Android"
+            ],
+            "usePrerelease": true
+        },
+        {
+            "name": "坤音-kunyin",
+            "owner": "ikunshare",
+            "repo": "kunyin",
+            "category": "音乐",
+            "description": "KunSound Builds",
+            "platforms": [
+                "Android"
+            ],
+            "usePrerelease": true
         }
     ]
 }

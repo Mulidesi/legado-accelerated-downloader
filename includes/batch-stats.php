@@ -57,12 +57,14 @@ function batchFetchRepoStats($repos, $proxyUrls, $token = null) {
     // 解析响应
     $stats = array();
     $successCount = 0;
+    $hasValidData = false;
+
     foreach ($repoKeys as $idx => $key) {
         $body = isset($responses[$idx]) ? $responses[$idx] : null;
         $data = $body ? json_decode($body, true) : null;
 
         if (!is_array($data) || !isset($data['stargazers_count'])) {
-            // API 失败（限额/网络错误）：填充 null，稍后判断是否缓存
+            // API 失败（限额/网络错误）：填充 null，不写入长效缓存
             $stats[$key] = array(
                 'stars' => null,
                 'forks' => null,
@@ -73,6 +75,7 @@ function batchFetchRepoStats($repos, $proxyUrls, $token = null) {
         }
 
         $successCount++;
+        $hasValidData = true;
         $updatedAt = isset($data['updated_at']) ? $data['updated_at'] : null;
         $stale = false;
         if ($updatedAt !== null) {
@@ -88,10 +91,11 @@ function batchFetchRepoStats($repos, $proxyUrls, $token = null) {
         );
     }
 
-    // 仅在至少一半请求成功时写入长效缓存（12 小时）
-    // 全部失败（通常是 API 限额）则短效缓存（5 分钟），避免限额恢复后长时间无数据
-    $ttl = ($successCount >= max(1, intval(count($repoKeys) / 2))) ? 43200 : 300;
-    file_cache_set($cacheKey, $stats, $ttl);
+    // 仅在至少一个仓库成功时写入缓存；全部失败则跳过缓存，避免 null 数据阻塞刷新
+    if ($hasValidData) {
+        $ttl = ($successCount >= max(1, intval(count($repoKeys) / 2))) ? 43200 : 300;
+        file_cache_set($cacheKey, $stats, $ttl);
+    }
 
     return $stats;
 }
@@ -104,11 +108,21 @@ function batchFetchRepoStats($repos, $proxyUrls, $token = null) {
  * @return array 响应体数组（按 URL 顺序）
  */
 function curl_multi_fetch($urls, $token = null) {
-    if (!function_exists('curl_multi_init') || !function_exists('curl_init')) {
-        return array_fill(0, count($urls), null);
+    if (empty($urls)) {
+        return array();
+    }
+
+    // 受限虚拟主机常缺少 curl_multi_* 或整个 cURL 扩展，
+    // 此时退回顺序请求，仍有机会拿到部分仓库数据。
+    if (!supports_multi_curl() || !function_exists('curl_init')) {
+        return sequential_fetch($urls, $token);
     }
 
     $mh = curl_multi_init();
+    if ($mh === false) {
+        return sequential_fetch($urls, $token);
+    }
+
     $handles = array();
     $userAgent = 'Legado-Resource-Accelerator/1.0';
 
@@ -156,6 +170,41 @@ function curl_multi_fetch($urls, $token = null) {
         curl_close($ch);
     }
     curl_multi_close($mh);
+
+    return $responses;
+}
+
+/**
+ * 顺序抓取多个 URL（无 curl_multi 时的降级路径）
+ *
+ * 受限主机上单次首页请求可能只允许很短的执行时间，
+ * 因此设置整体墙钟预算，超时后剩余仓库沿用静态快照。
+ *
+ * @param array $urls URL 列表
+ * @param string|null $token GitHub Token
+ * @return array 响应体数组（按 URL 顺序，失败为 null）
+ */
+function sequential_fetch($urls, $token = null) {
+    $responses = array_fill(0, count($urls), null);
+
+    if (githubHttpTransport() === 'none') {
+        return $responses;
+    }
+
+    $includeToken = ($token !== null && trim($token) !== '');
+    $startTime = microtime(true);
+    $budget = 8.0; // 首页总预算，避免受限主机上串行请求拖慢渲染
+
+    foreach ($urls as $idx => $url) {
+        if ((microtime(true) - $startTime) > $budget) {
+            break;
+        }
+
+        $result = githubHttpGet($url, 5, $includeToken);
+        if ($result['status'] === 200 && $result['body'] !== null) {
+            $responses[$idx] = $result['body'];
+        }
+    }
 
     return $responses;
 }

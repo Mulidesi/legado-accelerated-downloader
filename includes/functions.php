@@ -153,6 +153,169 @@ function _create_curl_handle($url, $timeout = 15, $includeToken = true) {
 }
 
 /**
+ * 探测当前主机可用的 HTTP 出站通道
+ *
+ * 受限虚拟主机常见三种情况：启用 cURL、仅开放 allow_url_fopen、
+ * 完全禁止出站请求。返回 'curl'、'stream' 或 'none'。
+ */
+function githubHttpTransport() {
+    static $transport = null;
+
+    if ($transport !== null) {
+        return $transport;
+    }
+
+    if (function_exists('curl_init') && function_exists('curl_exec')) {
+        $transport = 'curl';
+    } elseif (function_exists('file_get_contents')
+        && filter_var(ini_get('allow_url_fopen'), FILTER_VALIDATE_BOOLEAN)) {
+        $transport = 'stream';
+    } else {
+        $transport = 'none';
+    }
+
+    return $transport;
+}
+
+/**
+ * 统一的 GitHub GET 请求
+ *
+ * cURL 不可用时退回 stream 包装器，保证受限主机仍有机会获取远程数据。
+ *
+ * @return array{status:int,body:string|null}
+ */
+function githubHttpGet($url, $timeout = 15, $includeToken = true) {
+    $transport = githubHttpTransport();
+
+    if ($transport === 'curl') {
+        $ch = _create_curl_handle($url, $timeout, $includeToken);
+        if ($ch === false) {
+            return array('status' => 0, 'body' => null);
+        }
+
+        $body = curl_exec($ch);
+        $status = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        return array('status' => $status, 'body' => ($body === false ? null : $body));
+    }
+
+    if ($transport === 'stream') {
+        $context = stream_context_create(array(
+            'http' => array(
+                'method' => 'GET',
+                'timeout' => $timeout,
+                'header' => implode("\r\n", getGitHubApiHeaders($includeToken)),
+                // 读取 4xx/5xx 响应体，便于按状态码降级而不是抛出警告
+                'ignore_errors' => true,
+            ),
+            'ssl' => array(
+                'verify_peer' => true,
+                'verify_peer_name' => true,
+            ),
+        ));
+
+        $body = @file_get_contents($url, false, $context);
+        $status = 0;
+
+        // file_get_contents 会在本作用域写入 $http_response_header
+        if (isset($http_response_header) && is_array($http_response_header)) {
+            foreach ($http_response_header as $header) {
+                if (preg_match('#^HTTP/\S+\s+(\d{3})#', $header, $matches)) {
+                    $status = (int)$matches[1];
+                }
+            }
+        }
+
+        return array('status' => $status, 'body' => ($body === false ? null : $body));
+    }
+
+    return array('status' => 0, 'body' => null);
+}
+
+/**
+ * 校验 ISO 时间字符串是否可用于展示
+ */
+function isValidIsoDate($value) {
+    if (!is_string($value) || trim($value) === '') {
+        return false;
+    }
+
+    $timestamp = strtotime($value);
+
+    return $timestamp !== false && $timestamp > 0;
+}
+
+/**
+ * 归一化首页卡片展示数据
+ *
+ * 把 resources.json 中的静态快照作为渲染基线：缺少 cURL、禁止出站
+ * 网络或 GitHub API 限流时，Star、Fork 与最新 Release 时间依然可见。
+ */
+function normalizeResourceCardData($resources) {
+    if (!is_array($resources)) {
+        return array();
+    }
+
+    foreach ($resources as $index => $resource) {
+        if (!is_array($resource)) {
+            continue;
+        }
+
+        $stats = isset($resource['stats']) && is_array($resource['stats'])
+            ? $resource['stats']
+            : array();
+
+        $stats['stars'] = isset($stats['stars']) && is_numeric($stats['stars'])
+            ? (int)$stats['stars']
+            : null;
+        $stats['forks'] = isset($stats['forks']) && is_numeric($stats['forks'])
+            ? (int)$stats['forks']
+            : null;
+        $stats['updated_at'] = isset($stats['updated_at']) && isValidIsoDate($stats['updated_at'])
+            ? $stats['updated_at']
+            : null;
+        // 仅在仓库活跃度数据可信时保留标记，避免离线快照误判
+        $stats['stale'] = $stats['updated_at'] !== null && !empty($stats['stale']);
+
+        $resources[$index]['stats'] = $stats;
+
+        if (!isset($resource['releaseUpdatedAt']) || !isValidIsoDate($resource['releaseUpdatedAt'])) {
+            unset($resources[$index]['releaseUpdatedAt']);
+        }
+
+        if (!isset($resource['platforms']) || !is_array($resource['platforms'])) {
+            $resources[$index]['platforms'] = array();
+        }
+    }
+
+    return $resources;
+}
+
+/**
+ * 用远程统计覆盖快照，仅接受完整有效的数值
+ */
+function mergeRemoteRepoStats($current, $remote) {
+    $merged = is_array($current) ? $current : array();
+
+    if (!is_array($remote)
+        || !isset($remote['stars'], $remote['forks'])
+        || !is_numeric($remote['stars']) || !is_numeric($remote['forks'])) {
+        return $merged;
+    }
+
+    $merged['stars'] = (int)$remote['stars'];
+    $merged['forks'] = (int)$remote['forks'];
+
+    if (isset($remote['updated_at']) && isValidIsoDate($remote['updated_at'])) {
+        $merged['updated_at'] = $remote['updated_at'];
+        $merged['stale'] = !empty($remote['stale']);
+    }
+
+    return $merged;
+}
+
+/**
  * 统一 GitHub API 请求
  */
 function _github_api_request($url) {

@@ -9,7 +9,7 @@
  * 版本号变更后旧缓存会在 activate 阶段清理。修改静态资源时需同步递增 CACHE_VERSION。
  */
 
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 const CACHE_PREFIX = 'legado-';
 const STATIC_CACHE = CACHE_PREFIX + 'static-' + CACHE_VERSION;
 const PAGE_CACHE = CACHE_PREFIX + 'pages-' + CACHE_VERSION;
