@@ -215,12 +215,14 @@ function github_api_multi_request($urls, $timeout = 15, $cacheTtl = API_CACHE_TT
             }
         }
 
-        if ($httpCode === 401 && getGitHubToken() !== '') {
+        $hasToken = getGitHubToken() !== '';
+
+        if ($httpCode === 401 && $hasToken) {
             $results[$key] = github_api_single_request($urls_to_fetch[$key], $timeout, $cacheTtl, false);
             continue;
         }
 
-        if ($httpCode === 403 && getGitHubToken() !== '') {
+        if ($httpCode === 403 && $hasToken) {
             $results[$key] = github_api_single_request($urls_to_fetch[$key], $timeout, $cacheTtl, false);
             continue;
         }
@@ -248,12 +250,12 @@ function github_api_single_request($url, $timeout = 15, $cacheTtl = API_CACHE_TT
     $response = $result['body'];
     $httpCode = $result['status'];
 
-    if ($httpCode === 401 && $includeToken && getGitHubToken() !== '') {
-        return github_api_single_request($url, $timeout, $cacheTtl, false);
-    }
+    $hasToken = getGitHubToken() !== '';
 
-    if ($httpCode === 403 && $includeToken && getGitHubToken() !== '') {
-        return github_api_single_request($url, $timeout, $cacheTtl, false);
+    if ($includeToken && $hasToken) {
+        if ($httpCode === 401 || $httpCode === 403) {
+            return github_api_single_request($url, $timeout, $cacheTtl, false);
+        }
     }
 
     if ($httpCode === 200 && $response) {
