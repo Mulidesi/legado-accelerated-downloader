@@ -220,6 +220,11 @@ function github_api_multi_request($urls, $timeout = 15, $cacheTtl = API_CACHE_TT
             continue;
         }
 
+        if ($httpCode === 403 && getGitHubToken() !== '') {
+            $results[$key] = github_api_single_request($urls_to_fetch[$key], $timeout, $cacheTtl, false);
+            continue;
+        }
+
         // 直连失败（国内 VPS 常见 403/超时）时走 githubHttpGet 的代理回退
         $results[$key] = github_api_single_request($urls_to_fetch[$key], $timeout, $cacheTtl, true);
     }
@@ -244,6 +249,10 @@ function github_api_single_request($url, $timeout = 15, $cacheTtl = API_CACHE_TT
     $httpCode = $result['status'];
 
     if ($httpCode === 401 && $includeToken && getGitHubToken() !== '') {
+        return github_api_single_request($url, $timeout, $cacheTtl, false);
+    }
+
+    if ($httpCode === 403 && $includeToken && getGitHubToken() !== '') {
         return github_api_single_request($url, $timeout, $cacheTtl, false);
     }
 

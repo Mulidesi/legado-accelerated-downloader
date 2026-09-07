@@ -621,7 +621,15 @@ function _github_api_request($url) {
     $response = $result['body'];
     $httpCode = $result['status'];
 
+    // 401 = token 无效，降级为未认证请求
     if ($httpCode === 401 && getGitHubToken() !== '') {
+        $result = githubHttpGet($url, 15, false);
+        $response = $result['body'];
+        $httpCode = $result['status'];
+    }
+
+    // 403 = IP 被封或 token scope 不足，再次降级为未认证请求
+    if ($httpCode === 403 && getGitHubToken() !== '') {
         $result = githubHttpGet($url, 15, false);
         $response = $result['body'];
         $httpCode = $result['status'];
@@ -758,6 +766,7 @@ function getGitHubReleasesWithCache($owner, $repo, $includePrerelease = false) {
 
     $result = normalizeGitHubReleases($data, $includePrerelease);
 
+    // 成功响应才写入缓存，避免将 403 错误长期固化
     file_cache_set($cacheKey, $result, RELEASES_CACHE_TTL);
     return $result;
 }
