@@ -37,10 +37,11 @@ Entries discovered by the Agent during task execution should follow this format:
 - Category: Operations & Deployment
 - Instructions:
   - VPS IP: 154.58.233.54，日本机房，路径 /xp/www/gproxy.27464828.xyz/
-  - SSH 客户端不可用，需用户在 VPS 上手动执行 git pull
-  - 部署命令：cd /xp/www/gproxy.27464828.xyz && git pull origin main
+  - 本机环境无 SSH 客户端，git push 通过 HTTPS + token 认证完成
+  - VPS 部署命令（需手动执行）：cd /xp/www/gproxy.27464828.xyz && git pull origin main
   - 健康检查：curl -s https://gproxy.27464828.xyz/health
   - PHP 8.2-FPM + Nginx，SSL 通过 Let's Encrypt
+  - GitHub Release v1.15.1 包含修复后的代码和 legacy-deploy-php82.zip 部署包
 
 [Project Knowledge Summary]
 - Date: 2026-09-07
