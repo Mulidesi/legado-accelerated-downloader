@@ -53,44 +53,84 @@ function utf8Substring($value, $start, $length) {
     return preg_replace('/[\x80-\xFF]+$/', '', $sliced);
 }
 
-/**
- * 获取 GitHub Token - 安全增强版
- * 优先级: 环境变量 > 本地配置 > resources.json
- */
-function getGitHubToken() {
-    static $token = null;
-    if ($token === null) {
-        // 1. 优先从环境变量读取（最安全）
-        $envToken = getenv('GITHUB_TOKEN');
-        if (!empty($envToken)) {
-            $token = $envToken;
-            return $token;
-        }
+function normalizeGitHubTokenValue($value) {
+    if (!is_string($value)) {
+        return '';
+    }
+    $value = trim($value);
+    if (strncmp($value, "\xEF\xBB\xBF", 3) === 0) {
+        $value = trim(substr($value, 3));
+    }
+    if ($value === '' || preg_match('/^(填写|your-?api-?key|ghp_x+)/i', $value)) {
+        return '';
+    }
+    return $value;
+}
 
-        // 2. 从本地配置文件读取（不会被提交到Git）
-        $localConfigFile = __DIR__ . '/../data/config.local.json';
-        if (file_exists($localConfigFile)) {
-            $localConfig = @json_decode(file_get_contents($localConfigFile), true);
-            if (is_array($localConfig) && isset($localConfig['githubToken']) && !empty($localConfig['githubToken'])) {
-                $token = $localConfig['githubToken'];
+function readGitHubTokenFromJsonFile($file) {
+    if (!is_file($file)) {
+        return '';
+    }
+    if (!is_readable($file)) {
+        error_log('GitHub Token 配置文件存在但 PHP 进程无法读取: ' . basename($file));
+        return '';
+    }
+
+    $raw = @file_get_contents($file);
+    if ($raw === false || $raw === '') {
+        return '';
+    }
+    if (strncmp($raw, "\xEF\xBB\xBF", 3) === 0) {
+        $raw = substr($raw, 3);
+    }
+
+    $data = json_decode($raw, true);
+    if (!is_array($data)) {
+        $stripped = preg_replace('#/\*.*?\*/#s', '', $raw);
+        $stripped = preg_replace('#^\s*//.*$#m', '', $stripped);
+        $stripped = preg_replace('/,\s*([}\]])/', '$1', $stripped);
+        $data = json_decode($stripped, true);
+    }
+    if (!is_array($data)) {
+        error_log('GitHub Token 配置文件 JSON 无效: ' . basename($file));
+        return '';
+    }
+
+    foreach (array('githubToken', 'github_token', 'GITHUB_TOKEN') as $key) {
+        if (!empty($data[$key])) {
+            $token = normalizeGitHubTokenValue($data[$key]);
+            if ($token !== '') {
                 return $token;
             }
         }
-
-        // 3. 兼容旧版本：从 resources.json 读取（不推荐，会提示警告）
-        $configFile = __DIR__ . '/../data/resources.json';
-        if (file_exists($configFile)) {
-            $config = @json_decode(file_get_contents($configFile), true);
-            if (is_array($config) && isset($config['githubToken'])) {
-                $token = $config['githubToken'];
-            }
-        }
-
-        // 如果都未找到，返回空字符串
-        if ($token === null) {
-            $token = '';
-        }
     }
+
+    return '';
+}
+
+/**
+ * 获取 GitHub Token
+ * 优先级: 环境变量 > config.local.json > resources.json
+ */
+function getGitHubToken() {
+    static $token = null;
+    if ($token !== null) {
+        return $token;
+    }
+
+    $envToken = normalizeGitHubTokenValue((string)getenv('GITHUB_TOKEN'));
+    if ($envToken !== '') {
+        $token = $envToken;
+        return $token;
+    }
+
+    $dataDir = defined('DATA_DIR') ? DATA_DIR : (__DIR__ . '/../data');
+    $token = readGitHubTokenFromJsonFile($dataDir . '/config.local.json');
+    if ($token !== '') {
+        return $token;
+    }
+
+    $token = readGitHubTokenFromJsonFile($dataDir . '/resources.json');
     return $token;
 }
 
@@ -109,13 +149,14 @@ function getGitHubApiHeaders($includeToken = true) {
     }
 
     $headers = array(
-        'Accept: application/vnd.github.v3+json',
-        'User-Agent: GitHub-Accel-Downloader/1.7',
+        'Accept: application/vnd.github+json',
+        'User-Agent: GitHub-Accel-Downloader/1.13',
+        'X-GitHub-Api-Version: 2022-11-28',
     );
 
     $token = $includeToken ? getGitHubToken() : '';
     if ($includeToken && $token !== '') {
-        $headers[] = 'Authorization: token ' . $token;
+        $headers[] = 'Authorization: Bearer ' . $token;
     }
 
     if ($includeToken) {
@@ -130,6 +171,33 @@ function getGitHubApiHeaders($includeToken = true) {
 /**
  * 创建 cURL 句柄
  */
+/**
+ * 查找系统 CA bundle 路径（兼容不同发行版）
+ */
+function getSystemCaBundlePath() {
+    static $path = null;
+    if ($path !== null) {
+        return $path;
+    }
+    $candidates = array(
+        '/etc/ssl/certs/ca-certificates.crt',
+        '/etc/pki/tls/certs/ca-bundle.crt',
+        '/etc/ssl/ca-bundle.pem',
+        '/etc/ssl/cert.pem',
+        '/var/lib/ca-certificates/ca-bundle.pem',
+        '/usr/local/share/certs/ca-root-nss.crt',
+    );
+    foreach ($candidates as $p) {
+        if (is_file($p) && is_readable($p)) {
+            $path = $p;
+            return $path;
+        }
+    }
+    // 未找到任何已知路径，返回空字符串（依赖系统默认）
+    $path = '';
+    return $path;
+}
+
 function _create_curl_handle($url, $timeout = 15, $includeToken = true) {
     // 部分共享虚拟主机未启用 cURL；此时返回 false，由上层降级为空数据。
     if (!function_exists('curl_init')) {
@@ -140,15 +208,42 @@ function _create_curl_handle($url, $timeout = 15, $includeToken = true) {
     if ($ch === false) {
         return false;
     }
-    curl_setopt_array($ch, array(
+    $connectTimeout = (int)$timeout;
+    if ($connectTimeout > 10) {
+        $connectTimeout = 10;
+    }
+    if ($connectTimeout < 3) {
+        $connectTimeout = 3;
+    }
+
+    // 经第三方加速代理访问时不附带 Token，避免凭证泄露
+    if ($includeToken && strpos($url, 'https://api.github.com/') !== 0) {
+        $includeToken = false;
+    }
+
+    $options = array(
         CURLOPT_URL => $url,
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_TIMEOUT => $timeout,
+        CURLOPT_CONNECTTIMEOUT => $connectTimeout,
         CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_MAXREDIRS => 3,
+        CURLOPT_USERAGENT => 'GitHub-Accel-Downloader/1.13',
         CURLOPT_HTTPHEADER => getGitHubApiHeaders($includeToken),
         CURLOPT_SSL_VERIFYPEER => true,
         CURLOPT_SSL_VERIFYHOST => 2,
-    ));
+        CURLOPT_ENCODING => '',
+        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+    );
+    if (defined('CURL_IPRESOLVE_V4') && strpos($url, 'https://api.github.com/') === 0) {
+        $options[CURLOPT_IPRESOLVE] = CURL_IPRESOLVE_V4;
+    }
+    // 显式指定 CA bundle，避免某些发行版默认路径不存在导致 SSL 握手失败
+    $caBundle = getSystemCaBundlePath();
+    if ($caBundle !== '' && function_exists('curl_setopt_array')) {
+        $options[CURLOPT_CAINFO] = $caBundle;
+    }
+    curl_setopt_array($ch, $options);
     return $ch;
 }
 
@@ -177,30 +272,179 @@ function githubHttpTransport() {
     return $transport;
 }
 
+function isGithubApiUrl($url) {
+    return is_string($url) && strpos($url, 'https://api.github.com/') === 0;
+}
+
+function githubProxiedUrl($proxyBase, $url) {
+    return rtrim($proxyBase, '/') . '/' . $url;
+}
+
+function getGithubApiProxyBases() {
+    static $bases = null;
+    if ($bases !== null) {
+        return $bases;
+    }
+
+    if (!empty($GLOBALS['_legado_proxy_urls']) && is_array($GLOBALS['_legado_proxy_urls'])) {
+        $bases = array_values($GLOBALS['_legado_proxy_urls']);
+        return $bases;
+    }
+
+    $urls = array();
+    $file = (defined('DATA_DIR') ? DATA_DIR : __DIR__ . '/../data') . '/resources.json';
+    if (is_file($file)) {
+        $data = @json_decode(@file_get_contents($file), true);
+        if (is_array($data) && isset($data['proxyUrls'])) {
+            $urls = $data['proxyUrls'];
+        }
+    }
+
+    $defaults = array(
+        'https://gproxy.mlds.dpdns.org/',
+        'https://ghproxy.net/',
+        'https://ghproxy.monkeyray.net/',
+    );
+
+    if (function_exists('sanitizeProxyUrls')) {
+        $bases = array_values(array_unique(array_merge(sanitizeProxyUrls($urls), $defaults)));
+    } else {
+        $bases = $defaults;
+    }
+
+    return $bases;
+}
+
+function githubRememberRoute($route) {
+    $GLOBALS['_github_route'] = $route;
+    if (function_exists('file_cache_set')) {
+        file_cache_set('github:route', $route, 600);
+    }
+}
+
+function githubCurrentRoute() {
+    return isset($GLOBALS['_github_route']) ? $GLOBALS['_github_route'] : '';
+}
+
 /**
- * 统一的 GitHub GET 请求
- *
- * cURL 不可用时退回 stream 包装器，保证受限主机仍有机会获取远程数据。
+ * 探测直连 GitHub API。有 Token 时必须带 Token 探测：
+ * 数据中心 IP 对未认证请求常返回 403，若据此改走代理会丢掉 Token。
+ */
+function githubEnsureRoute() {
+    if (githubCurrentRoute() !== '') {
+        return;
+    }
+
+    if (function_exists('file_cache_get')) {
+        $cached = file_cache_get('github:route');
+        if ($cached === 'proxy' || $cached === 'direct') {
+            $GLOBALS['_github_route'] = $cached;
+            return;
+        }
+    }
+
+    $hasToken = getGitHubToken() !== '';
+    $probe = githubHttpGetRaw('https://api.github.com/rate_limit', 8, $hasToken);
+    if (githubHttpResponseOk($probe) && githubDecodeJsonBody($probe['body'])) {
+        githubRememberRoute('direct');
+        return;
+    }
+
+    githubRememberRoute('direct-failed');
+}
+
+function githubMaybeRewriteUrl($url) {
+    return $url;
+}
+
+function githubHttpResponseOk($result) {
+    return is_array($result)
+        && isset($result['status'], $result['body'])
+        && (int)$result['status'] === 200
+        && $result['body'] !== null
+        && $result['body'] !== '';
+}
+
+function githubRememberLastError($status, $url, $detail) {
+    $host = parse_url($url, PHP_URL_HOST);
+    $path = parse_url($url, PHP_URL_PATH);
+    $GLOBALS['_github_last_error'] = array(
+        'status' => (int)$status,
+        'host' => is_string($host) ? $host : '',
+        'path' => is_string($path) ? $path : '',
+        'detail' => is_string($detail) ? substr($detail, 0, 180) : '',
+    );
+}
+
+function githubLastError() {
+    return isset($GLOBALS['_github_last_error']) && is_array($GLOBALS['_github_last_error'])
+        ? $GLOBALS['_github_last_error']
+        : null;
+}
+
+function githubDecodeJsonBody($body) {
+    if (!is_string($body) || $body === '') {
+        return null;
+    }
+    if (strncmp($body, "\x1f\x8b", 2) === 0 && function_exists('gzdecode')) {
+        $decoded = @gzdecode($body);
+        if (is_string($decoded) && $decoded !== '') {
+            $body = $decoded;
+        }
+    }
+    $data = json_decode($body, true);
+    return is_array($data) ? $data : null;
+}
+
+function githubFormatFetchError($fallback) {
+    $err = githubLastError();
+    $hasToken = getGitHubToken() !== '';
+    $parts = array($fallback);
+    if (is_array($err) && !empty($err['status'])) {
+        $parts[] = 'HTTP ' . (int)$err['status'];
+    } elseif (is_array($err) && !empty($err['detail'])) {
+        $parts[] = $err['detail'];
+    }
+    $parts[] = $hasToken ? 'token=on' : 'token=off';
+    return implode(' · ', $parts);
+}
+
+/**
+ * 底层 GET，不走代理回退。
  *
  * @return array{status:int,body:string|null}
  */
-function githubHttpGet($url, $timeout = 15, $includeToken = true) {
+function githubHttpGetRaw($url, $timeout = 15, $includeToken = true) {
     $transport = githubHttpTransport();
 
     if ($transport === 'curl') {
         $ch = _create_curl_handle($url, $timeout, $includeToken);
         if ($ch === false) {
+            githubRememberLastError(0, $url, 'curl_init failed');
             return array('status' => 0, 'body' => null);
         }
 
         $body = curl_exec($ch);
         $status = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err = curl_error($ch);
         curl_close($ch);
 
-        return array('status' => $status, 'body' => ($body === false ? null : $body));
+        if ($body === false || $status === 0) {
+            githubRememberLastError($status, $url, $err !== '' ? $err : 'empty curl response');
+            return array('status' => $status, 'body' => null);
+        }
+
+        if ($status !== 200) {
+            githubRememberLastError($status, $url, $err);
+        }
+
+        return array('status' => $status, 'body' => $body);
     }
 
     if ($transport === 'stream') {
+        if ($includeToken && !isGithubApiUrl($url)) {
+            $includeToken = false;
+        }
         $context = stream_context_create(array(
             'http' => array(
                 'method' => 'GET',
@@ -212,6 +456,7 @@ function githubHttpGet($url, $timeout = 15, $includeToken = true) {
             'ssl' => array(
                 'verify_peer' => true,
                 'verify_peer_name' => true,
+                'cafile'  => getSystemCaBundlePath(),
             ),
         ));
 
@@ -227,10 +472,57 @@ function githubHttpGet($url, $timeout = 15, $includeToken = true) {
             }
         }
 
-        return array('status' => $status, 'body' => ($body === false ? null : $body));
+        if ($body === false || $status === 0) {
+            githubRememberLastError($status, $url, 'stream request failed');
+            return array('status' => $status, 'body' => null);
+        }
+        if ($status !== 200) {
+            githubRememberLastError($status, $url, 'stream non-200');
+        }
+
+        return array('status' => $status, 'body' => $body);
     }
 
     return array('status' => 0, 'body' => null);
+}
+
+/**
+ * 统一的 GitHub GET 请求
+ *
+ * 国内 VPS 直连 api.github.com 常被 403/超时拦截时，自动改走加速代理。
+ *
+ * @return array{status:int,body:string|null}
+ */
+function githubHttpGet($url, $timeout = 15, $includeToken = true) {
+    $originalUrl = $url;
+    $useToken = $includeToken && isGithubApiUrl($originalUrl);
+    $result = githubHttpGetRaw($originalUrl, $timeout, $useToken);
+
+    if ($result['status'] === 401 && $useToken) {
+        $result = githubHttpGetRaw($originalUrl, $timeout, false);
+        $useToken = false;
+    }
+
+    if (githubHttpResponseOk($result) && githubDecodeJsonBody($result['body'])) {
+        githubRememberRoute('direct');
+        return $result;
+    }
+
+    if (!isGithubApiUrl($originalUrl)) {
+        return $result;
+    }
+
+    $bases = getGithubApiProxyBases();
+    foreach ($bases as $base) {
+        $proxied = githubProxiedUrl($base, $originalUrl);
+        $retry = githubHttpGetRaw($proxied, $timeout, false);
+        if (githubHttpResponseOk($retry) && githubDecodeJsonBody($retry['body'])) {
+            githubRememberRoute('proxy');
+            return $retry;
+        }
+    }
+
+    return $result;
 }
 
 /**
@@ -325,32 +617,23 @@ function _github_api_request($url) {
         return $cached;
     }
 
-    $ch = _create_curl_handle($url);
-    if ($ch === false) {
-        return null;
-    }
-
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
+    $result = githubHttpGet($url, 15, true);
+    $response = $result['body'];
+    $httpCode = $result['status'];
 
     if ($httpCode === 401 && getGitHubToken() !== '') {
-        $ch = _create_curl_handle($url, 15, false);
-        if ($ch === false) {
-            return null;
-        }
-
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
+        $result = githubHttpGet($url, 15, false);
+        $response = $result['body'];
+        $httpCode = $result['status'];
     }
 
     if ($httpCode !== 200 || !$response) {
         return null;
     }
 
-    $data = json_decode($response, true);
+    $data = githubDecodeJsonBody($response);
     if (!is_array($data)) {
+        githubRememberLastError($httpCode, $url, 'json_decode failed');
         return null;
     }
 
@@ -469,7 +752,7 @@ function getGitHubReleasesWithCache($owner, $repo, $includePrerelease = false) {
     $data = _github_api_request("https://api.github.com/repos/{$owner}/{$repo}/releases?per_page=5");
 
     if ($data === null) {
-        $result = array('error' => 'api', 'message' => '获取 release 失败');
+        $result = array('error' => 'api', 'message' => githubFormatFetchError('获取 release 失败'));
         return $result;
     }
 
@@ -493,7 +776,7 @@ function getGitHubTagsWithCache($owner, $repo) {
     $data = _github_api_request("https://api.github.com/repos/{$owner}/{$repo}/tags?per_page=5");
 
     if ($data === null) {
-        $result = array('error' => 'api', 'message' => '获取 tag 失败');
+        $result = array('error' => 'api', 'message' => githubFormatFetchError('获取 tag 失败'));
         return $result;
     }
 
@@ -573,7 +856,7 @@ function getGitHubRepoDetailWithCache($owner, $repo, $includePrerelease = false,
                     $releases = normalizeGitHubTags($data);
                     file_cache_set($releasesCacheKey, $releases, RELEASES_CACHE_TTL);
                 } else {
-                    $releases = array('error' => 'api', 'message' => '获取 tag 失败');
+                    $releases = array('error' => 'api', 'message' => githubFormatFetchError('获取 tag 失败'));
                 }
             } else {
                 $data = isset($responses['releases']) ? $responses['releases'] : null;
@@ -581,7 +864,7 @@ function getGitHubRepoDetailWithCache($owner, $repo, $includePrerelease = false,
                     $releases = normalizeGitHubReleases($data, $includePrerelease);
                     file_cache_set($releasesCacheKey, $releases, RELEASES_CACHE_TTL);
                 } else {
-                    $releases = array('error' => 'api', 'message' => '获取 release 失败');
+                    $releases = array('error' => 'api', 'message' => githubFormatFetchError('获取 release 失败'));
                 }
             }
         }
@@ -589,7 +872,7 @@ function getGitHubRepoDetailWithCache($owner, $repo, $includePrerelease = false,
 
     return array(
         'repoInfo' => $repoInfo,
-        'releases' => $releases === null ? array('error' => 'api', 'message' => '获取版本失败') : $releases,
+        'releases' => $releases === null ? array('error' => 'api', 'message' => githubFormatFetchError('获取版本失败')) : $releases,
     );
 }
 

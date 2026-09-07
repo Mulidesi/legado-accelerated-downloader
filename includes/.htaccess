@@ -1,0 +1,9 @@
+# 禁止通过 Web 直接访问 includes 目录
+<IfModule mod_authz_core.c>
+    Require all denied
+</IfModule>
+
+<IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+</IfModule>

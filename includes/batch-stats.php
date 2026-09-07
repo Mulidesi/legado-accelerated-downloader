@@ -61,7 +61,9 @@ function batchFetchRepoStats($repos, $proxyUrls, $token = null) {
 
     foreach ($repoKeys as $idx => $key) {
         $body = isset($responses[$idx]) ? $responses[$idx] : null;
-        $data = $body ? json_decode($body, true) : null;
+        $data = $body
+            ? (function_exists('githubDecodeJsonBody') ? githubDecodeJsonBody($body) : json_decode($body, true))
+            : null;
 
         if (!is_array($data) || !isset($data['stargazers_count'])) {
             // API 失败（限额/网络错误）：填充 null，不写入长效缓存
@@ -127,8 +129,11 @@ function curl_multi_fetch($urls, $token = null) {
     $userAgent = 'Legado-Resource-Accelerator/1.0';
 
     foreach ($urls as $idx => $url) {
+        $fetchUrl = function_exists('githubMaybeRewriteUrl') ? githubMaybeRewriteUrl($url) : $url;
+        $useToken = ($token !== null && trim($token) !== '')
+            && (!function_exists('isGithubApiUrl') || isGithubApiUrl($fetchUrl));
         $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_URL, $fetchUrl);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
         curl_setopt($ch, CURLOPT_MAXREDIRS, 3);
@@ -137,10 +142,23 @@ function curl_multi_fetch($urls, $token = null) {
         curl_setopt($ch, CURLOPT_USERAGENT, $userAgent);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
+        curl_setopt($ch, CURLOPT_ENCODING, '');
+        curl_setopt($ch, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
+        if (defined('CURL_IPRESOLVE_V4') && strpos($fetchUrl, 'https://api.github.com/') === 0) {
+            curl_setopt($ch, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
+        }
+        // 显式指定 CA bundle，避免某些发行版默认路径不存在导致 SSL 握手失败
+        $caBundle = function_exists('getSystemCaBundlePath') ? getSystemCaBundlePath() : '';
+        if ($caBundle !== '') {
+            curl_setopt($ch, CURLOPT_CAINFO, $caBundle);
+        }
 
-        $headers = array('Accept: application/vnd.github.v3+json');
-        if ($token !== null && trim($token) !== '') {
-            $headers[] = 'Authorization: token ' . $token;
+        $headers = array(
+            'Accept: application/vnd.github+json',
+            'X-GitHub-Api-Version: 2022-11-28',
+        );
+        if ($useToken) {
+            $headers[] = 'Authorization: Bearer ' . $token;
         }
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
 
@@ -162,14 +180,29 @@ function curl_multi_fetch($urls, $token = null) {
         }
     } while ($active && $status === CURLM_OK);
 
-    // 收集响应
+    // 收集响应；直连失败的仓库再走 githubHttpGet 代理回退
     $responses = array();
+    $needRetry = array();
     foreach ($handles as $idx => $ch) {
-        $responses[$idx] = curl_multi_getcontent($ch);
+        $body = curl_multi_getcontent($ch);
+        $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_multi_remove_handle($mh, $ch);
         curl_close($ch);
+        if ($httpCode === 200 && $body) {
+            $responses[$idx] = $body;
+        } else {
+            $responses[$idx] = null;
+            $needRetry[$idx] = $urls[$idx];
+        }
     }
     curl_multi_close($mh);
+
+    foreach ($needRetry as $idx => $url) {
+        $result = githubHttpGet($url, 8, $token !== null && trim($token) !== '');
+        if (isset($result['status']) && (int)$result['status'] === 200 && !empty($result['body'])) {
+            $responses[$idx] = $result['body'];
+        }
+    }
 
     return $responses;
 }

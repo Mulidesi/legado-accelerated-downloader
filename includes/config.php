@@ -153,18 +153,20 @@ function loadSecureConfig() {
         'legacyTokenInResources' => false
     );
     
-    // 优先从环境变量读取 GitHub Token
-    $token = getenv('GITHUB_TOKEN');
-    
-    // 如果环境变量不存在，尝试读取本地配置文件
-    if (empty($token) && file_exists($localConfigFile)) {
-        $localConfig = @json_decode(file_get_contents($localConfigFile), true);
-        if (is_array($localConfig) && isset($localConfig['githubToken'])) {
-            $token = $localConfig['githubToken'];
+    $token = '';
+    if (function_exists('getGitHubToken')) {
+        $token = getGitHubToken();
+    } else {
+        $token = getenv('GITHUB_TOKEN');
+        if (empty($token) && file_exists($localConfigFile)) {
+            $localConfig = @json_decode(file_get_contents($localConfigFile), true);
+            if (is_array($localConfig) && isset($localConfig['githubToken'])) {
+                $token = $localConfig['githubToken'];
+            }
         }
     }
-    
-    $config['githubToken'] = $token ?: '';
+
+    $config['githubToken'] = is_string($token) ? trim($token) : '';
     
     // 读取资源列表：单次解码后批量提取字段，避免重复 is_array 校验
     if (file_exists($resourcesFile)) {

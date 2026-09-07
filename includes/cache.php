@@ -8,13 +8,23 @@ if (!defined('DATA_DIR')) {
     exit('Direct access not allowed');
 }
 
-// 确保缓存目录存在
-if (!is_dir(CACHE_DIR)) {
-    @mkdir(CACHE_DIR, 0755, true);
+function ensureCacheDir() {
+    if (!defined('CACHE_DIR')) {
+        return false;
+    }
+    if (!is_dir(CACHE_DIR)) {
+        @mkdir(CACHE_DIR, 0755, true);
+    }
+    if (is_dir(CACHE_DIR) && !is_writable(CACHE_DIR) && function_exists('chmod')) {
+        @chmod(CACHE_DIR, 0755);
+    }
+    return is_dir(CACHE_DIR) && is_writable(CACHE_DIR);
 }
 
-// 缓存目录可用性检查（一次性）
-define('CACHE_AVAILABLE', is_dir(CACHE_DIR) && is_writable(CACHE_DIR));
+ensureCacheDir();
+if (!defined('CACHE_AVAILABLE')) {
+    define('CACHE_AVAILABLE', ensureCacheDir());
+}
 
 /**
  * 获取文件缓存
@@ -52,8 +62,7 @@ function file_cache_get($key) {
  * 设置文件缓存
  */
 function file_cache_set($key, $value, $ttl = 3600) {
-    // 如果缓存不可用，直接返回（降级处理）
-    if (!CACHE_AVAILABLE) {
+    if (!ensureCacheDir()) {
         return false;
     }
 
@@ -66,7 +75,11 @@ function file_cache_set($key, $value, $ttl = 3600) {
 
     // 使用临时文件实现原子性写入
     $tempFile = $file . '.' . uniqid('tmp', true);
-    $written = @file_put_contents($tempFile, json_encode($data), LOCK_EX);
+    $payload = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    if ($payload === false) {
+        return false;
+    }
+    $written = @file_put_contents($tempFile, $payload, LOCK_EX);
 
     if ($written !== false) {
         if (function_exists('chmod')) {
@@ -143,7 +156,7 @@ function github_api_multi_request($urls, $timeout = 15, $cacheTtl = API_CACHE_TT
     $chs = array();
 
     foreach ($urls_to_fetch as $key => $url) {
-        $ch = _create_curl_handle($url, $timeout);
+        $ch = _create_curl_handle(githubMaybeRewriteUrl($url), $timeout);
         if ($ch === false) {
             continue;
         }
@@ -192,18 +205,23 @@ function github_api_multi_request($urls, $timeout = 15, $cacheTtl = API_CACHE_TT
         curl_close($ch);
 
         if ($httpCode === 200 && $response) {
-            $data = json_decode($response, true);
+            $data = function_exists('githubDecodeJsonBody')
+                ? githubDecodeJsonBody($response)
+                : json_decode($response, true);
             if (is_array($data)) {
                 $results[$key] = $data;
                 file_cache_set('api:' . md5($urls_to_fetch[$key]), $data, $cacheTtl);
-            } else {
-                $results[$key] = null;
+                continue;
             }
-        } elseif ($httpCode === 401 && getGitHubToken() !== '') {
-            $results[$key] = github_api_single_request($urls_to_fetch[$key], $timeout, $cacheTtl, true);
-        } else {
-            $results[$key] = null;
         }
+
+        if ($httpCode === 401 && getGitHubToken() !== '') {
+            $results[$key] = github_api_single_request($urls_to_fetch[$key], $timeout, $cacheTtl, false);
+            continue;
+        }
+
+        // 直连失败（国内 VPS 常见 403/超时）时走 githubHttpGet 的代理回退
+        $results[$key] = github_api_single_request($urls_to_fetch[$key], $timeout, $cacheTtl, true);
     }
 
     curl_multi_close($mh);
@@ -230,7 +248,9 @@ function github_api_single_request($url, $timeout = 15, $cacheTtl = API_CACHE_TT
     }
 
     if ($httpCode === 200 && $response) {
-        $data = json_decode($response, true);
+        $data = function_exists('githubDecodeJsonBody')
+            ? githubDecodeJsonBody($response)
+            : json_decode($response, true);
         if (is_array($data)) {
             file_cache_set($cacheKey, $data, $cacheTtl);
             return $data;

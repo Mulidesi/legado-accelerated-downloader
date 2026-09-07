@@ -1,11 +1,16 @@
 # Apache 安全配置文件
 # 禁止直接访问敏感目录和文件
 
-# 禁止访问 data 和 includes 目录
+DirectoryIndex index.php
+
+# 禁止访问 data 和 includes 目录；其余路径交给 index.php（/health）
 <IfModule mod_rewrite.c>
     RewriteEngine On
     RewriteRule ^data/ - [F,L]
     RewriteRule ^includes/ - [F,L]
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^ index.php [QSA,L]
 </IfModule>
 
 <IfModule mod_authz_core.c>
@@ -57,7 +62,15 @@
     </FilesMatch>
 </IfModule>
 
-# PHP 设置 (如果允许)
+# PHP 设置 (如果允许)。PHP 8+ 使用 mod_php.c，保留 php7 分支兼容旧主机。
+<IfModule mod_php.c>
+    php_flag display_errors off
+    php_value error_log data/error.log
+</IfModule>
+<IfModule mod_php8.c>
+    php_flag display_errors off
+    php_value error_log data/error.log
+</IfModule>
 <IfModule mod_php7.c>
     php_flag display_errors off
     php_value error_log data/error.log

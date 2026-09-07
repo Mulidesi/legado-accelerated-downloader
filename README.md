@@ -2,7 +2,7 @@
 
 基于 PHP 的 GitHub Release 聚合下载站点，用于集中展示 Legado 相关资源，并通过配置的 HTTPS 加速代理生成下载入口。项目采用单入口 PHP 架构，适合部署在支持 PHP 和 cURL 的虚拟主机、Apache、Nginx 或轻量 PHP 运行环境中。
 
-[![Version](https://img.shields.io/badge/version-1.13.0-blue.svg)](https://github.com)
+[![Version](https://img.shields.io/badge/version-1.14.0-blue.svg)](https://github.com)
 [![PHP](https://img.shields.io/badge/PHP-7.4+-blue.svg)](https://php.net)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
@@ -410,6 +410,25 @@ curl -s -o /dev/null -w "%{http_code}" --max-time 15 "http://localhost:8000/?res
 | `snapshot.pushedAt` | string | 否 | ISO 8601 格式的最近更新时间。 |
 
 ## 更新日志
+
+### v1.14.0 - SSL CA 证书路径修复与访问诊断增强
+
+**SSL 证书连接修复**
+
+- 修复部分 Linux 发行版（Debian/Ubuntu）上 PHP cURL 找不到 CA bundle 导致 HTTPS 握手失败的问题：错误信息 `error setting certificate verify locations: CAfile: /etc/pki/tls/certs/ca-bundle.crt CApath: none`。
+- 新增 `getSystemCaBundlePath()` 函数，自动扫描多个候选路径（`/etc/ssl/certs/ca-certificates.crt`、`/etc/pki/tls/certs/ca-bundle.crt` 等），以第一个可用路径作为 `CURLOPT_CAINFO` 和 stream context `ssl.cafile` 的值。
+- `.user.ini` 和 `deploy/php8.2-fpm-pool.conf` 同步添加 `curl.cainfo` / `openssl.cafile` 覆盖配置，确保 FPM 进程也生效。
+- `includes/batch-stats.php` 中 `curl_multi_fetch()` 同步添加 `CURLOPT_CAINFO`，保持双路径一致。
+
+**健康检查增强**
+
+- `/health` 端点支持 `?health=1` 查询参数（除原路径匹配外），方便通过任意 URL 格式进行探活。
+- 健康检查响应新增 `diagnostics` 字段：包含 `curl_available`、`http_transport`、`multi_curl`、`github_token`、`github_route`、`api_status`、`api_authenticated`、`last_error`，便于快速定位问题。
+- `cache_writable` 检查移至 `/health` 前，确保探活响应快速返回。
+
+**构建与发布**
+
+- 部署包 `legado-deploy-php82.zip` 移除运行时 `data/cache/` 中的真实缓存文件，仅保留空目录占位符，避免将不同环境的 API 响应缓存带入发布包。
 
 ### v1.13.0 - 虚拟主机环境适配与静态快照
 

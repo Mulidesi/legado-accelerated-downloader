@@ -50,6 +50,7 @@ require_once __DIR__ . '/includes/batch-stats.php';
 
 // 加载安全配置
 $config = loadSecureConfig();
+$GLOBALS['_legado_proxy_urls'] = isset($config['proxyUrls']) ? $config['proxyUrls'] : array();
 
 if (!empty($config['legacyTokenInResources'])) {
     error_log('安全警告: GitHub Token 存储在 resources.json 中，建议迁移到环境变量或 config.local.json');
@@ -63,8 +64,9 @@ if (empty($resources)) {
     exit('<h1>配置错误</h1><p>resources.json 不存在或格式错误，请确保包含 resources 数组</p>');
 }
 
-// 确保缓存目录存在
-if (!is_dir(CACHE_DIR)) {
+if (function_exists('ensureCacheDir')) {
+    ensureCacheDir();
+} elseif (!is_dir(CACHE_DIR)) {
     @mkdir(CACHE_DIR, 0755, true);
 }
 
@@ -75,22 +77,35 @@ $path = isset($_SERVER['REQUEST_URI'])
 
 // 健康检查端点：供负载均衡/监控探活，不返回任何敏感信息
 // 必须排在所有外部网络请求之前，否则探活会被 GitHub 请求拖慢甚至超时
-if ($path === '/health') {
+$isHealth = ($path === '/health' || $path === '/index.php/health'
+    || (isset($_GET['health']) && (string)$_GET['health'] === '1' && !isset($_GET['owner'])));
+if ($isHealth) {
     header('Content-Type: application/json; charset=utf-8');
     header('Cache-Control: no-store');
 
     // 站点在无出站网络时仍能用静态快照完整渲染，
     // 因此健康判定只覆盖真正影响可用性的条件。
     $checks = array(
-        'cache_writable' => CACHE_AVAILABLE,
+        'cache_writable' => function_exists('ensureCacheDir') ? ensureCacheDir() : CACHE_AVAILABLE,
         'resources_loaded' => count($resources) > 0,
     );
 
     // 受限虚拟主机排查用：出站能力仅供诊断，不影响健康判定
+    $probe = githubHttpGet('https://api.github.com/rate_limit', 8, true);
+    $probeData = isset($probe['body']) ? githubDecodeJsonBody($probe['body']) : null;
+    $cachedRoute = function_exists('file_cache_get') ? file_cache_get('github:route') : null;
+    $lastError = function_exists('githubLastError') ? githubLastError() : null;
     $diagnostics = array(
         'curl_available' => function_exists('curl_init'),
         'http_transport' => githubHttpTransport(),
         'multi_curl' => supports_multi_curl(),
+        'github_token' => getGitHubToken() !== '' ? 'configured' : 'missing',
+        'github_route' => is_string($cachedRoute) && $cachedRoute !== '' ? $cachedRoute : 'unset',
+        'api_status' => isset($probe['status']) ? (int)$probe['status'] : 0,
+        'api_authenticated' => is_array($probeData) && isset($probeData['resources']['core']['limit'])
+            ? ((int)$probeData['resources']['core']['limit'] >= 1000)
+            : false,
+        'last_error' => $lastError,
     );
 
     $healthy = !in_array(false, $checks, true);

@@ -39,8 +39,9 @@ jobs:
             assets includes templates \
             data/resources.json data/.htaccess data/config.local.json.example \
             data/cache \
-            index.php .htaccess manifest.webmanifest sw.js \
-            README.md SECURITY_MIGRATION.md
+            index.php .htaccess .user.ini manifest.webmanifest sw.js \
+            deploy/ \
+            README.md SECURITY_MIGRATION.md DEPLOY.md
 
       - name: Verify credentials are excluded
         run: |
