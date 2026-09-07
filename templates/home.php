@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Legado 资源加速下载</title>
     <meta name="description" content="Legado 开源阅读相关资源的聚合下载页，提供多个分支版本的加速下载入口。">
-    <meta name="theme-color" content="#5B5BD6">
+    <meta name="theme-color" content="#3B82F6">
     <link rel="icon" href="assets/favicon.ico" type="image/x-icon">
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
