@@ -491,6 +491,74 @@ function getResourceLatestReleaseAtBatch($resources) {
 }
 
 /**
+ * 批量获取资源最新 Release 完整信息（含 assets）
+ *
+ * 返回结构与 $resources 索引对齐，元素为 latestRelease 数组或 null。
+ * latestRelease 包含：tag_name, name, published_at, prerelease, assets, _isLatest
+ */
+function getResourceLatestReleaseWithAssetsBatch($resources, $proxyUrls) {
+    $results = array();
+
+    foreach ($resources as $index => $resource) {
+        if (!isset($resource['owner'], $resource['repo'])) {
+            $results[$index] = null;
+            continue;
+        }
+
+        $usePrerelease = isset($resource['usePrerelease']) && $resource['usePrerelease'];
+        $releases = getGitHubReleasesWithCache(
+            $resource['owner'],
+            $resource['repo'],
+            $usePrerelease
+        );
+
+        if (!is_array($releases) || empty($releases) || isset($releases['error'])) {
+            $results[$index] = null;
+            continue;
+        }
+
+        // 找第一个稳定版；若无稳定版则取第一个（可能为 prerelease）
+        $latest = null;
+        foreach ($releases as $r) {
+            if (!isset($r['prerelease']) || !$r['prerelease']) {
+                $latest = $r;
+                break;
+            }
+        }
+        if ($latest === null) {
+            $latest = $releases[0];
+        }
+
+        // 生成各 asset 的加速下载链接
+        $assets = array();
+        if (!empty($latest['assets']) && is_array($latest['assets'])) {
+            foreach ($latest['assets'] as $asset) {
+                $downloadUrl = buildAcceleratedUrlOptimized(
+                    $proxyUrls,
+                    $asset['browser_download_url']
+                );
+                $assets[] = array(
+                    'name' => $asset['name'],
+                    'size' => $asset['size'],
+                    'url' => $downloadUrl,
+                );
+            }
+        }
+
+        $results[$index] = array(
+            'tag_name' => isset($latest['tag_name']) ? $latest['tag_name'] : '',
+            'name' => isset($latest['name']) && $latest['name'] !== '' ? $latest['name'] : null,
+            'published_at' => isset($latest['published_at']) ? $latest['published_at'] : '',
+            'prerelease' => isset($latest['prerelease']) ? $latest['prerelease'] : false,
+            'assets' => $assets,
+            '_isLatest' => true,
+        );
+    }
+
+    return $results;
+}
+
+/**
  * 清空缓存
  */
 function clear_cache() {

@@ -255,6 +255,15 @@ if (!empty($resources) && githubHttpTransport() !== 'none') {
                 $resources[$index]['releaseUpdatedAt'] = $releaseUpdatedAt[$index];
             }
         }
+
+        // 批量获取各资源最新 Release 完整信息（含 assets），注入 latestRelease 字段
+        $proxyUrls = isset($config['proxyUrls']) ? $config['proxyUrls'] : array('https://ghproxy.net/');
+        $latestReleases = getResourceLatestReleaseWithAssetsBatch($resources, $proxyUrls);
+        foreach ($resources as $index => $resource) {
+            if (isset($latestReleases[$index]) && $latestReleases[$index] !== null) {
+                $resources[$index]['latestRelease'] = $latestReleases[$index];
+            }
+        }
     } catch (Throwable $error) {
         error_log('首页 GitHub 增强信息加载失败，已降级为本地快照: ' . $error->getMessage());
     } catch (Exception $error) {

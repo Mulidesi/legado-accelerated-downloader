@@ -287,6 +287,122 @@
                             <?php endif; ?>
                         </div>
 
+                        <?php
+                        $latestRelease = $resource['latestRelease'] ?? null;
+                        $hasLatestRelease = is_array($latestRelease) && !empty($latestRelease['tag_name']);
+                        $primaryAsset = (!empty($latestRelease['assets']) && is_array($latestRelease['assets'])) ? $latestRelease['assets'][0] : null;
+                        ?>
+                        <?php if ($hasLatestRelease): ?>
+                        <div class="card-release-summary">
+                            <span class="chip chip-mono chip-accent"><?= h($latestRelease['tag_name']) ?></span>
+                            <?php if ($primaryAsset): ?>
+                                <a class="btn btn-download-sm" href="<?= h($primaryAsset['url']) ?>" target="_blank" rel="noopener noreferrer" title="下载 <?= h($primaryAsset['name']) ?>">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                                        <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+                                        <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
+                                    </svg>
+                                    下载
+                                </a>
+                            <?php else: ?>
+                                <span class="card-no-assets">暂无下载资源</span>
+                            <?php endif; ?>
+                            <button type="button" class="card-expand-btn" aria-expanded="false" aria-label="查看全部版本">
+                                <span class="card-expand-text">查看全部版本</span>
+                                <svg class="card-expand-icon" xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                                    <path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <?php endif; ?>
+
+                        <div class="card-expanded-content" hidden>
+                            <?php if (!$hasLatestRelease): ?>
+                                <div class="card-expanded-error">加载版本列表失败</div>
+                            <?php else: ?>
+                                <?php
+                                $owner = $resource['owner'];
+                                $repo = $resource['repo'];
+                                // 获取完整 release 列表（最多 5 条）
+                                $usePrerelease = isset($resource['usePrerelease']) && $resource['usePrerelease'];
+                                $fullReleases = getGitHubReleasesWithCache($owner, $repo, $usePrerelease);
+                                $hasFullReleases = is_array($fullReleases) && !empty($fullReleases) && !isset($fullReleases['error']);
+                                ?>
+                                <?php if (!$hasFullReleases): ?>
+                                    <div class="card-expanded-error">
+                                        <span>版本列表加载失败</span>
+                                        <button type="button" class="card-expand-retry" data-owner="<?= h($owner) ?>" data-repo="<?= h($repo) ?>">重试</button>
+                                    </div>
+                                <?php else: ?>
+                                    <?php foreach ($fullReleases as $idx => $release): ?>
+                                        <?php
+                                        $rTag = $release['tag_name'] ?? '';
+                                        $rName = $release['name'] ?? '';
+                                        $rPrerelease = $release['prerelease'] ?? false;
+                                        $rPublishedAt = $release['published_at'] ?? '';
+                                        $rAssets = $release['assets'] ?? array();
+                                        $rBody = $release['body'] ?? '';
+                                        $isThisLatest = ($idx === 0);
+                                        $hasRAAssets = !empty($rAssets);
+                                        ?>
+                                        <details class="release-item<?= $isThisLatest ? ' release-item-latest' : '' ?>" <?= $isThisLatest ? 'open' : '' ?>>
+                                            <summary class="release-summary">
+                                                <div class="release-summary-main">
+                                                    <span class="chip chip-mono chip-accent"><?= h($rTag) ?></span>
+                                                    <?php if ($rName !== '' && $rName !== $rTag): ?>
+                                                        <span class="release-summary-name"><?= h($rName) ?></span>
+                                                    <?php endif; ?>
+                                                    <?php if ($rPrerelease): ?>
+                                                        <span class="chip chip-warning">预发布</span>
+                                                    <?php elseif ($isThisLatest): ?>
+                                                        <span class="chip chip-success">Latest</span>
+                                                    <?php endif; ?>
+                                                </div>
+                                                <div class="release-summary-meta">
+                                                    <?php if ($rPublishedAt !== ''): ?>
+                                                        <span class="release-date"><?= h(formatDate($rPublishedAt)) ?></span>
+                                                    <?php endif; ?>
+                                                    <?php if ($hasRAAssets): ?>
+                                                        <span class="release-asset-count"><?= count($rAssets) ?> 个文件</span>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </summary>
+                                            <?php if ($hasRAAssets): ?>
+                                                <div class="release-assets">
+                                                    <?php foreach ($rAssets as $asset): ?>
+                                                        <?php
+                                                        $assetUrl = buildAcceleratedUrlOptimized(
+                                                            $proxyUrls ?? array('https://ghproxy.net/'),
+                                                            $asset['browser_download_url']
+                                                        );
+                                                        ?>
+                                                        <div class="asset-row">
+                                                            <a class="asset" href="<?= h($assetUrl) ?>" target="_blank" rel="noopener noreferrer">
+                                                                <svg class="asset-icon" xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                                                                    <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+                                                                    <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
+                                                                </svg>
+                                                                <span class="asset-name" title="<?= h($asset['name']) ?>"><?= h($asset['name']) ?></span>
+                                                                <span class="asset-size"><?= h(formatFileSizeOptimized($asset['size'])) ?></span>
+                                                            </a>
+                                                            <button class="asset-copy" type="button" data-url="<?= h($assetUrl) ?>" aria-label="复制下载链接" title="复制链接">
+                                                                <svg class="icon-copy" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                                                                    <path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z"/>
+                                                                    <path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z"/>
+                                                                </svg>
+                                                                <svg class="icon-copied" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                                                                    <path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z"/>
+                                                                </svg>
+                                                            </button>
+                                                        </div>
+                                                    <?php endforeach; ?>
+                                                </div>
+                                            <?php endif; ?>
+                                        </details>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            <?php endif; ?>
+                        </div>
+
                         <div class="card-spacer"></div>
 
                         <div class="card-foot">

@@ -338,16 +338,109 @@
         lastFocused = null;
     }
 
+    var expandedCard = null;
+
+    function toggleCardExpand(card) {
+        if (expandedCard === card) {
+            collapseCard(expandedCard);
+            return;
+        }
+        if (expandedCard) {
+            collapseCard(expandedCard);
+        }
+        expandCard(card);
+    }
+
+    function expandCard(card) {
+        var content = card.querySelector('.card-expanded-content');
+        if (!content) return;
+        card.classList.add('expanded');
+        content.hidden = false;
+        var btn = card.querySelector('.card-expand-btn');
+        if (btn) {
+            btn.setAttribute('aria-expanded', 'true');
+            btn.querySelector('.card-expand-text').textContent = '收起';
+        }
+        expandedCard = card;
+        // 滚动到卡片顶部
+        card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function collapseCard(card) {
+        var content = card.querySelector('.card-expanded-content');
+        if (content) {
+            content.hidden = true;
+        }
+        card.classList.remove('expanded');
+        var btn = card.querySelector('.card-expand-btn');
+        if (btn) {
+            btn.setAttribute('aria-expanded', 'false');
+            btn.querySelector('.card-expand-text').textContent = '查看全部版本';
+        }
+        if (expandedCard === card) {
+            expandedCard = null;
+        }
+    }
+
     cards.forEach(function (card) {
         card.addEventListener('click', function (e) {
             // 保留新窗口打开等原生行为
             if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) {
                 return;
             }
+
+            // 点击下载链接或复制按钮：不触发展开
+            if (e.target.closest('.asset') || e.target.closest('.asset-copy')) {
+                return;
+            }
+
+            // 点击重试按钮：重新加载该卡片的展开内容
+            var retryBtn = e.target.closest('.card-expand-retry');
+            if (retryBtn) {
+                e.preventDefault();
+                e.stopPropagation();
+                reloadCardExpand(card);
+                return;
+            }
+
+            // 点击展开/收起区域
+            var summaryArea = e.target.closest('.card-release-summary, .card-expand-btn');
+            if (summaryArea) {
+                e.preventDefault();
+                if (card.classList.contains('expanded')) {
+                    collapseCard(card);
+                } else {
+                    toggleCardExpand(card);
+                }
+                return;
+            }
+
+            // 其余点击（标题、链接等）：打开详情页
             e.preventDefault();
             openSheet(card.dataset.owner, card.dataset.repo, card.dataset.name, true);
         });
     });
+
+    function reloadCardExpand(card) {
+        var content = card.querySelector('.card-expanded-content');
+        if (!content) return;
+        content.innerHTML = '<div class="card-expanded-error">加载中...</div>';
+        var owner = card.dataset.owner;
+        var repo = card.dataset.repo;
+        var url = 'index.php?owner=' + encodeURIComponent(owner) +
+            '&repo=' + encodeURIComponent(repo) + '&fragment=1';
+        fetch(url, { headers: { 'X-Requested-With': 'fetch' } })
+            .then(function (res) { return res.text(); })
+            .then(function (html) {
+                if (card.classList.contains('expanded')) {
+                    content.innerHTML = html;
+                    content.hidden = false;
+                }
+            })
+            .catch(function () {
+                content.innerHTML = '<div class="card-expanded-error">加载失败，请重试</div>';
+            });
+    }
 
     sheetClose.addEventListener('click', function () {
         closeSheet(true);

@@ -1967,6 +1967,249 @@ body.sheet-open {
     min-height: 1.25rem;
 }
 
+/* ===================== 卡片内联版本区域 ===================== */
+
+/* 折叠态：Release 摘要条 */
+.card-release-summary {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    margin-top: 4px;
+    border-top: 1px solid var(--border);
+    background-color: var(--surface);
+    flex-wrap: wrap;
+}
+
+/* 主下载按钮（小尺寸） */
+.btn-download-sm {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 12px;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--accent);
+    background-color: var(--accent-soft);
+    border: 1px solid var(--accent-soft-strong);
+    border-radius: var(--radius-pill);
+    text-decoration: none;
+    transition: background-color 0.18s var(--ease), color 0.18s var(--ease);
+    flex-shrink: 0;
+}
+
+.btn-download-sm:hover {
+    background-color: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+}
+
+/* 无下载资源提示 */
+.card-no-assets {
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+/* 展开/收起按钮 */
+.card-expand-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    margin-left: auto;
+    background: none;
+    border: none;
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    transition: color 0.15s, background-color 0.15s;
+}
+
+.card-expand-btn:hover {
+    color: var(--accent);
+    background-color: var(--accent-soft);
+}
+
+.card-expand-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+}
+
+.card-expand-icon {
+    transition: transform 0.25s var(--ease);
+    display: inline-block;
+}
+
+.card-expand-btn[aria-expanded="true"] .card-expand-icon {
+    transform: rotate(180deg);
+}
+
+/* 展开内容区：CSS 过渡动画 */
+.card-expanded-content {
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition: max-height 0.35s var(--ease), opacity 0.25s var(--ease);
+    border-top: 1px solid transparent;
+}
+
+.card.expanded .card-expanded-content {
+    max-height: 2000px;
+    opacity: 1;
+    border-top-color: var(--border);
+}
+
+.card.expanded .card-release-summary {
+    display: none;
+}
+
+/* 展开态卡片高亮边框 */
+.card.expanded {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent), var(--shadow-md);
+}
+
+/* 展开区错误提示 */
+.card-expanded-error {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    margin: 12px 0;
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.card-expand-retry {
+    padding: 4px 10px;
+    font-size: 0.8125rem;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--accent);
+    cursor: pointer;
+    transition: background-color 0.15s;
+}
+
+.card-expand-retry:hover {
+    background-color: var(--accent-soft);
+}
+
+/* 卡片内展开的 release 条目 */
+.release-item {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background-color: var(--surface);
+    margin-bottom: 8px;
+}
+
+.release-item-latest {
+    border-color: var(--success);
+    box-shadow: 0 0 0 1px var(--success);
+}
+
+.release-item details[open] > .release-summary {
+    border-bottom: 1px solid var(--border);
+}
+
+.release-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 10px 14px;
+    cursor: pointer;
+    list-style: none;
+    font-size: 0.875rem;
+}
+
+.release-summary::-webkit-details-marker {
+    display: none;
+}
+
+.release-summary::before {
+    content: '▸';
+    display: inline-block;
+    transition: transform 0.2s;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.release-item details[open] > .release-summary::before {
+    transform: rotate(90deg);
+}
+
+.release-summary:hover {
+    background-color: var(--surface-hover);
+}
+
+.release-summary-main {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    flex: 1;
+}
+
+.release-summary-name {
+    font-weight: 500;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.release-summary-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+}
+
+.release-asset-count {
+    font-size: 0.75rem;
+    padding: 2px 6px;
+    background-color: var(--bg-elevated);
+    border-radius: var(--radius-sm);
+}
+
+.release-assets {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px 12px;
+}
+
+/* 卡片内 asset-row 紧凑布局 */
+.card-expanded-content .asset-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.card-expanded-content .asset {
+    flex: 1;
+    padding: 8px 12px;
+    font-size: 0.8125rem;
+}
+
+.card-expanded-content .asset-name {
+    font-size: 0.8125rem;
+    max-width: 200px;
+}
+
+.card-expanded-content .asset-size {
+    font-size: 0.75rem;
+}
+
 @media (max-width: 480px) {
     .custom-download-row {
         flex-direction: column;
